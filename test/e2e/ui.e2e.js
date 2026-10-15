@@ -143,7 +143,7 @@ for (const vp of Object.values(VIEWPORTS)) {
       await withShot(s, 'dishes-search-server-empty', async () => {
         await page.goto('/?q=zzzz');
         await page.locator('.empty h2', { hasText: 'No matches' }).waitFor();
-        await page.click('text=Clear filters');
+        await page.click('text=Show all dishes');
         await page.waitForURL((u) => u.pathname === '/' && !u.search);
         await a.check('dishes no matches');
       });

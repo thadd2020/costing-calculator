@@ -9,8 +9,11 @@ export const TEMPLATE_COLUMNS = ['name', 'supplier', 'category', 'pack_size', 'p
 export const MAX_ROWS = 5000;
 export const MAX_BYTES = 2 * 1024 * 1024;
 const REQUIRED = ['name', 'pack_size', 'pack_unit', 'pack_price'];
-// Optional fields where a blank means "no change" for an ingredient that already exists.
-const OPTIONAL_KEPT = ['category', 'vat_rate', 'waste_pct'];
+// For an ingredient that already exists, these keep their saved value when the file has no
+// such column, or (for VAT and waste, which our export always fills in) a blank cell. A blank
+// category cell clears the category, so export -> edit -> re-import can remove one.
+const KEPT_IF_NO_COLUMN = ['category', 'vat_rate', 'waste_pct'];
+const KEPT_IF_BLANK = ['vat_rate', 'waste_pct'];
 
 // Header aliases, after lower-casing and turning spaces/dashes into underscores.
 const HEADER_ALIASES = {
@@ -37,7 +40,8 @@ function detectDelimiter(text) {
 
 // Excel's plain "CSV (Comma delimited)" saves as Windows-1252, not UTF-8. If the bytes aren't
 // valid UTF-8 and contain no UTF-8 accents or symbols at all, read them as Windows-1252 so
-// "Crème" and "£" survive. A UTF-8 file with one stray bad byte stays UTF-8.
+// "Crème" and "£" survive. A UTF-8 file with one stray bad byte stays UTF-8;
+// the affected row is then rejected in validateRow.
 function decode(buffer) {
   const utf8 = new TextDecoder('utf-8').decode(buffer);
   if (!utf8.includes('\uFFFD') || /[^\u0000-\u007F\uFFFD\uFEFF]/.test(utf8)) return utf8;
@@ -106,7 +110,9 @@ export function parseIngredientCsv(buffer) {
       continue;
     }
     seen.set(k, rowNumber);
-    const blank = OPTIONAL_KEPT.filter((f) => String(raw[f] ?? '').trim() === '');
+    // raw[f] is undefined only when the file has no such column.
+    const blank = KEPT_IF_NO_COLUMN.filter((f) => raw[f] === undefined
+      || (KEPT_IF_BLANK.includes(f) && raw[f].trim() === ''));
     rows.push({ row: rowNumber, data: result.data, blank, raw });
   }
   return { rows, errors, fatal: null, columns: TEMPLATE_COLUMNS };
@@ -117,6 +123,11 @@ function validateRow(raw, row) {
 
   const name = cleanText(raw.name, 200);
   if (!name) return fail('name', 'name is blank');
+  // U+FFFD marks bytes that weren't valid text (a mostly-UTF-8 file with one pasted-in
+  // Windows-1252 row). Saving it would create a near-duplicate of "Crème".
+  if ([raw.name, raw.supplier, raw.category].some((t) => String(t ?? '').includes('\uFFFD'))) {
+    return fail('name', "contains characters that couldn't be read; save the file as CSV UTF-8 and try again");
+  }
   const supplier = cleanText(raw.supplier, 200);
   const category = cleanText(raw.category, 100);
 

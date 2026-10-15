@@ -597,3 +597,27 @@ describe('import audit: encoding fallback', () => {
     assert.equal(r.rows[0].data.name, 'Crème fraîche');
   });
 });
+
+describe('import audit: follow-up review', () => {
+  const saved = { id: 1, name: 'Plain flour', supplier: '', category: 'Dry goods', pack_size: 16, pack_unit: 'kg', pack_price_ex_vat: 12, vat_rate: 0, waste_pct: 0.02 };
+
+  test('a blank category cell clears the category (export -> edit -> re-import works)', () => {
+    const parsed = parseIngredientCsv(Buffer.from('name,category,pack_size,pack_unit,pack_price,vat_rate,waste_pct\nPlain flour,,16,kg,12,0%,2%\n'));
+    const plan = planImport(parsed.rows, [saved], 0);
+    assert.equal(plan.items[0].data.category, '');
+    assert.deepEqual(plan.items[0].changedFields, ['category']);
+  });
+
+  test('no category column at all still keeps the saved category', () => {
+    const parsed = parseIngredientCsv(Buffer.from('name,pack_size,pack_unit,pack_price\nPlain flour,16,kg,12\n'));
+    assert.equal(planImport(parsed.rows, [saved], 0).items[0].action, 'unchanged');
+  });
+
+  test('a row with unreadable characters is rejected, not saved as a near-duplicate', () => {
+    const buf = Buffer.concat([Buffer.from('name,pack_size,pack_unit,pack_price\nCrème fraîche,1,kg,2\nCr'), Buffer.from([0xe8]), Buffer.from('me,1,kg,3\n')]);
+    const r = parseIngredientCsv(buf);
+    assert.deepEqual(r.rows.map((x) => x.data.name), ['Crème fraîche']);
+    assert.equal(r.errors.length, 1);
+    assert.match(r.errors[0].message, /Row 3: .*couldn't be read/);
+  });
+});
