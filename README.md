@@ -2,6 +2,17 @@
 
 Cost dishes and drinks, see gross profit live as you type, price to a target GP, and price a delivery menu after platform commission. Built for one UK restaurant owner, phone-first.
 
+## Status (15 Oct 2026)
+
+All five milestones are built and pushed to `main`. Live at https://davidt876.sg-host.com on SiteGround MySQL.
+
+Going live needs `SESSION_SECRET` and `ADMIN_PASSWORD_HASH` set in Site Tools before the deploy (see [DEPLOY.md](DEPLOY.md)); without them production refuses to start. Then check `/healthz` says `ok`, log in, and confirm the examples show 68.2% (Under target) and 74.5% (On target).
+
+Where things are written down:
+- [DEPLOY.md](DEPLOY.md): environment variables, every-deploy steps, password reset, rollback, backups, logs, verified SiteGround facts
+- [DECISIONS.md](DECISIONS.md): every judgement call and why (1–52)
+- [CLAUDE.md](CLAUDE.md): the original brief
+
 ## Run locally
 
 Needs Node.js 22 or newer (24 recommended).
