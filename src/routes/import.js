@@ -61,7 +61,7 @@ export default function importRoutes({ db }) {
       return res.render('error', { title: 'Import cancelled', message: 'This import was cancelled or expired. Upload the file again to start over.' });
     }
     // Plan against current ingredients, so the preview reflects any edits since upload.
-    const plan = planImport(batch.payload.rows, await listIngredients(db), batch.payload.errors.length);
+    const plan = planImport(batch.payload.rows, await listIngredients(db), batch.payload.errors.length, batch.payload.present);
     const changes = plan.items.filter((i) => i.action !== 'unchanged');
     res.render('import/preview', { title: 'Check the import', batch, plan, changes, errors: batch.payload.errors });
   });
