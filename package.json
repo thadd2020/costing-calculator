@@ -1,0 +1,21 @@
+{
+  "name": "gp-costing-calculator",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Cost dishes and drinks, see GP live, and price dine-in and delivery menus.",
+  "type": "module",
+  "main": "server.js",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test \"test/**/*.test.js\"",
+    "migrate": "node scripts/migrate.js"
+  },
+  "license": "UNLICENSED",
+  "dependencies": {
+    "better-sqlite3": "^13.0.3",
+    "express": "^5.3.0"
+  }
+}
