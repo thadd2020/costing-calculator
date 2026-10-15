@@ -37,6 +37,8 @@ const server = app.listen(config.port, () => {
 
 function shutdown(signal) {
   console.log(`${signal} received, shutting down`);
+  // If a connection hangs, don't wait forever for the host to kill the process.
+  setTimeout(() => process.exit(1), 10_000).unref();
   stopBackups();
   app.locals.sessionStore.close();
   server.close(async () => {

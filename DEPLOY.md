@@ -109,4 +109,4 @@ Sources: [What is a Node.js Project?](https://www.siteground.com/kb/what-is-node
 | ~~Native modules build?~~ | Yes, better-sqlite3 installed fine | — |
 | Is the process kept running, and how is it restarted? | sessions, nightly backup timer | — |
 
-**Persistence (resolved):** the docs describe separate builds per deployment that can each be deleted to free inodes. That strongly suggests each deploy goes into a new folder, so **a database inside the repo folder (`./data`) would be lost on the next push.** Production `DATA_DIR` has to point outside the build folder (e.g. a folder in the account's home directory). If SiteGround can't guarantee such a path survives redeploys, the plan is to stop and move storage to the **MySQL database included with the project**, behind the existing `src/db/` module. See CLAUDE.md section 12.
+**Persistence (resolved):** each deploy is built into a new folder and the home folder isn't writable by the app, so production stores everything in the project's **MySQL** database (`DB_CLIENT=mysql`). `DATA_DIR` is only used for local SQLite.
