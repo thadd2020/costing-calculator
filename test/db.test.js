@@ -13,9 +13,9 @@ function freshDb() {
 
 test('migrations apply once and are tracked', () => {
   const db = openDb(':memory:');
-  assert.deepEqual(migrate(db), ['001_init.sql']);
+  assert.deepEqual(migrate(db), ['001_init.sql', '002_installed_at.sql']);
   assert.deepEqual(migrate(db), [], 'second run applies nothing');
-  assert.equal(schemaVersion(db), 1);
+  assert.equal(schemaVersion(db), 2);
 });
 
 test('later migrations are applied in numeric order', () => {
@@ -30,7 +30,9 @@ test('later migrations are applied in numeric order', () => {
 
 test('default settings and delivery channels are seeded', () => {
   const db = freshDb();
-  assert.deepEqual(getSettings(db), {
+  const { installed_at, ...settings } = getSettings(db);
+  assert.match(installed_at, /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/);
+  assert.deepEqual(settings, {
     vat_rate: 0.2, target_gp_food: 0.7, target_gp_drink: 0.7,
     alert_gp: 0.6, default_packaging: 0.5, round_up_to_pence: 0,
   });

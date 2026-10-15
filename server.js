@@ -2,6 +2,7 @@ import { config, dbFile } from './src/config.js';
 import { openDb, migrate } from './src/db/index.js';
 import { createApp } from './src/app.js';
 
+console.log(`Database file: ${dbFile}`);
 const db = openDb(dbFile);
 const applied = migrate(db);
 if (applied.length) console.log(`Applied migrations: ${applied.join(', ')}`);

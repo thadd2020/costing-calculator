@@ -22,8 +22,18 @@ export function createApp({ db }) {
     res.type('application/javascript').sendFile(path.join(ROOT, 'src/calc/calc.js'));
   });
 
+  // Temporary placeholder until milestone 3. Shows when the database was created, so a
+  // redeploy can be checked for data loss (the time must not change).
   app.get('/', (req, res) => {
-    res.type('text').send('GP Costing Calculator - milestone 1 scaffold. Screens arrive in milestones 2 and 3.');
+    const row = db.prepare("SELECT value FROM settings WHERE key = 'installed_at'").get();
+    const created = row
+      ? new Date(row.value).toLocaleString('en-GB', { timeZone: 'Europe/London', dateStyle: 'medium', timeStyle: 'medium' })
+      : 'unknown';
+    res.type('text').send([
+      'GP Costing Calculator - milestone 1 scaffold. Screens arrive in milestones 2 and 3.',
+      `Database created: ${created} (UK time)`,
+      `Node ${process.version}`,
+    ].join('\n'));
   });
 
   return app;
