@@ -1,10 +1,16 @@
-import { config, dbFile } from './src/config.js';
+import { config, describeDb } from './src/config.js';
 import { openDb, migrate } from './src/db/index.js';
 import { createApp } from './src/app.js';
 
-console.log(`Database file: ${dbFile}`);
-const db = openDb(dbFile);
-const applied = migrate(db);
+if (config.isProduction && config.db.client !== 'mysql') {
+  // On SiteGround each deploy runs from a fresh folder, so a SQLite file would be lost.
+  console.error('Refusing to start: production needs DB_CLIENT=mysql (see DEPLOY.md).');
+  process.exit(1);
+}
+
+console.log(`Database: ${describeDb(config.db)}`);
+const db = openDb(config.db);
+const applied = await migrate(db);
 if (applied.length) console.log(`Applied migrations: ${applied.join(', ')}`);
 
 const app = createApp({ db, config });
@@ -14,8 +20,8 @@ const server = app.listen(config.port, () => {
 
 function shutdown(signal) {
   console.log(`${signal} received, shutting down`);
-  server.close(() => {
-    db.close();
+  server.close(async () => {
+    await db.close();
     process.exit(0);
   });
 }

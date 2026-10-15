@@ -1,6 +1,8 @@
 # Deploying to SiteGround
 
-> Status: **research notes only** (milestone 1). The copy-paste checklist is finished and verified in milestone 5.
+> Status: **research notes + live findings** (milestone 1). The copy-paste checklist is finished and verified in milestone 5.
+>
+> **Decision: production uses SiteGround's MySQL, not SQLite.** See "Verified on the live project" below and DECISIONS.md #15.
 
 ## What SiteGround's official docs confirm (read 15 Oct 2026)
 
@@ -13,6 +15,13 @@ Sources: [What is a Node.js Project?](https://www.siteground.com/kb/what-is-node
 - Site Tools > Node.js > Logs keeps every deployment (author, branch, commit, status) with the full build log. Older builds can be deleted "to free inodes". The live build can't be deleted.
 - Each project also has File Manager, **MySQL and PostgreSQL databases**, Backups, SSL/HTTPS enforce, Cron Jobs and SSH keys in Site Tools.
 - Projects start on a temporary domain; your own domain can be assigned later.
+
+## Verified on the live project (davidt876.sg-host.com, 15 Oct 2026)
+
+- **Node version: 22** (selected in Deployment Options). Package manager npm. No start command field shown, yet the app started, so SiteGround runs `npm start` (= `node server.js`). Building better-sqlite3 (a native module) also worked.
+- No output directory field shown. No environment variables set by default.
+- **Each deploy goes into a new folder** under `public_html/.nodeapp/`, e.g. `1234567890-origin` (first deploy) and `1792072990-r4o9zr` (next push), plus `latest` (777; points at the live build), `app.json` and `git.log`.
+- **Therefore `./data` is fresh on every deploy, and the app can't write to the home folder.** SQLite is ruled out for production.
 
 ## Not stated in the docs: must confirm in Site Tools or with support before going live
 
