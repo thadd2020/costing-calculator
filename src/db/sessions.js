@@ -28,3 +28,8 @@ export async function sessionDestroy(q, sid) {
 export async function sessionPruneExpired(q, now = Date.now()) {
   await q.run('DELETE FROM sessions WHERE expires_at <= ?', [now]);
 }
+
+// Logs out every other device, e.g. after a password change.
+export async function sessionDestroyOthers(q, keepSid) {
+  await q.run('DELETE FROM sessions WHERE sid <> ?', [keepSid]);
+}

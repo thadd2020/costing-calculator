@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import {
-  getSettings, setSettings, listChannels, getChannel, createChannel, updateChannel, deleteChannel, setStoredPasswordHash,
+  getSettings, setSettings, listChannels, getChannel, createChannel, updateChannel, deleteChannel, setStoredPasswordHash, sessionDestroyOthers,
 } from '../db/index.js';
 import { ROUNDING_STEPS } from '../calc/calc.js';
 import { parseMoney, parsePercentField, cleanText, parseId } from '../input.js';
@@ -98,7 +98,8 @@ export default function settingsRoutes({ db, config }) {
     else if (next1 !== next2) error = "The two new passwords don't match.";
     if (error) return render(res.status(422), { passwordError: error });
     await setStoredPasswordHash(db, await hashPassword(next1));
-    flash(req, 'Password changed. Use the new one next time you log in.');
+    await sessionDestroyOthers(db, req.sessionID);
+    flash(req, 'Password changed. Any other phone or computer that was logged in has been logged out.');
     res.redirect('/settings#password');
   });
 

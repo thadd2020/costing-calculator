@@ -119,3 +119,19 @@ describe('backups', () => {
     }));
   }
 });
+
+describe('nightly backup schedule', () => {
+  test('backs up when due, not twice in a day', async () => {
+    const { backupIfDue } = await import('../src/backup.js');
+    const { listBackups } = await import('../src/db/index.js');
+    const { db, cleanup } = await testDatabases()[0].create();
+    try {
+      const day1 = Date.UTC(2026, 9, 15, 2);
+      assert.equal(await backupIfDue(db, day1), true);
+      assert.equal(await backupIfDue(db, day1 + 3600 * 1000), false, 'an hour later: not due');
+      assert.equal((await listBackups(db)).length, 1);
+    } finally {
+      await cleanup();
+    }
+  });
+});

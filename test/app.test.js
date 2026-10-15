@@ -198,13 +198,18 @@ for (const { name, create } of testDatabases()) {
       assert.ok(res.body.includes('£19.50'), 'suggested price rounded up to 50p');
     });
 
-    test('password change takes effect', async () => {
+    test('password change takes effect and logs out other devices', async () => {
+      const other = app.client();
+      await other.login('password');
+      assert.equal((await other.get('/')).status, 200);
       const wrong = await c.post('/settings/password', { current_password: 'x', new_password: 'longenough1', confirm_password: 'longenough1' });
       assert.equal(wrong.status, 422);
       await c.post('/settings/password', { current_password: 'password', new_password: 'new-password-123', confirm_password: 'new-password-123' });
       const anon = app.client();
       assert.equal((await anon.login('password')).status, 401);
       assert.equal((await app.client().login('new-password-123')).status, 302);
+      assert.equal((await other.get('/')).location, '/login', 'other device logged out');
+      assert.equal((await c.get('/')).status, 200, 'this device stays logged in');
     });
 
     test('logout ends the session', async () => {

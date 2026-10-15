@@ -11,7 +11,7 @@ export function csrfToken(req) {
 export function verifyCsrf(req, res, next) {
   const sent = req.body?._csrf || req.get('x-csrf-token') || '';
   const expected = req.session?.csrf || '';
-  const ok = expected && sent.length === expected.length
+  const ok = typeof sent === 'string' && expected && sent.length === expected.length
     && crypto.timingSafeEqual(Buffer.from(sent), Buffer.from(expected));
   if (ok) return next();
   res.status(403).render('error', {

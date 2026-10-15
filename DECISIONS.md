@@ -33,3 +33,32 @@ Calls made where the brief was silent or reality differed. Newest at the bottom.
 24. **Production guard:** with `NODE_ENV=production` the server refuses to start unless `DB_CLIENT=mysql`, so a misconfigured deploy fails loudly instead of quietly using a database that the next deploy wipes.
 25. **Backups (affects milestone 4):** with MySQL there's no database file to copy, and nowhere writable outside the deploy folder. Plan: the manual "backup" download becomes an app-generated export (SQL or JSON) of all tables, and the "second location" nightly copy is SiteGround's own daily backups (Site Tools > Security > Backups). To be confirmed in milestone 4.
 26. **Tests against MySQL:** `TEST_MYSQL_URL=mysql://root:pw@127.0.0.1:33306 npm test` runs the database tests on both engines, each in a throwaway database. Without it, only SQLite runs. Locally a `mysql:8.0` Docker container is used.
+
+## Milestones 2-5 (15 Oct 2026)
+
+27. **Login moved forward into milestone 2** (owner agreed). Every push auto-deploys, so no screen with cost data went live without it.
+28. **Sessions are stored in the database** (`sessions` table, custom express-session store), so a restart or deploy doesn't log the owner out. Anonymous sessions (login page only) last 1 hour; logged-in sessions 14 days from login.
+29. **Change password from Settings** stores a bcrypt hash in the settings table, which takes priority over `ADMIN_PASSWORD_HASH`. The env var can't be changed from inside the app, and the brief asks for a change-password screen. Reset steps are in DEPLOY.md. Changing the password logs out all other devices.
+30. **Development password** is `password` when `ADMIN_PASSWORD_HASH` isn't set, so `npm start` works from a clean clone. Production refuses to start without the hash, a 32+ character `SESSION_SECRET`, and MySQL.
+31. **CSRF:** one random token per session, in a hidden `_csrf` field (or `x-csrf-token` header), compared in constant time. The CSV upload checks it after multer has parsed the multipart body.
+32. **CSP:** `default-src 'self'` with no inline scripts or styles. Data for the live editor is passed in an HTML-escaped `data-json` attribute rather than an inline script.
+33. **No web fonts.** System fonts only; numbers use a DIN-style condensed face where installed (Bahnschrift on Windows, DIN Alternate on Apple). That avoids third-party requests from a page full of commercially sensitive data, and CSP stays `'self'`.
+34. **Recipe lines name their ingredient by label** ("Plain flour (Brakes)"), picked from a searchable `<datalist>`. The server resolves the label, so the editor also works without JavaScript and a stale hidden id can't silently win over what was typed.
+35. **Import counts:** besides new / price changed / unchanged / rejected, the preview shows **other details changed** (pack size, waste, category or VAT changed, price the same). Those rows are updated but don't write price history.
+36. **Import matching keeps the saved spelling** of name and supplier; a difference only in capitals is not a change.
+37. **New ingredients get a first price_history row** (source manual or import), so "price set on" and history always have a starting point.
+38. **Inc-VAT import row with a blank vat_rate is rejected**, not guessed as 20%, because many food items are zero-rated (CLAUDE.md section 6 VAT notes).
+39. **VAT rates on ingredients are 0 or 20%** as in the brief. The per-dish sales VAT override accepts any rate from 0 to 99% (e.g. zero-rated cold takeaway).
+40. **Delimiter detection:** comma, semicolon or tab, whichever appears most in the header line. Covers European-locale spreadsheet exports.
+41. **Duplicate rows within one file:** the first wins and later ones are reported as rejected.
+42. **The commit re-plans against current ingredients** in the same transaction, so edits made between preview and confirm are respected, and a batch can only be committed once (`status = 'previewed'` guard).
+43. **Dish impact after import** is recorded at commit time: GP before and after for every dish using a re-priced ingredient. Dishes now below the alert threshold are listed first.
+44. **Export escaping:** text cells starting with `= + - @`, tab or CR get a leading `'`. The importer strips that quote again, so export → edit → re-import is a no-op (tested). Numbers are never escaped.
+45. **Waste and VAT in the ingredients export** are written as percentages ("5%", "20%") so they read naturally in a spreadsheet; prices are exported ex-VAT at full precision.
+46. **Backups:** nightly JSON snapshots in a `backups` table (newest 14), checked hourly and taken when the last one is over ~23 hours old (so also shortly after a deploy if overdue). The full backup download is the same JSON. `npm run restore` loads one. The password hash is never included. SiteGround's daily backups are the copy kept in a second location. The brief asked for a backup *file*, and that's impossible here (no persistent writable folder).
+47. **Seed on first run:** a brand-new, empty database gets the two spreadsheet examples once (flagged in settings), so deleting them later doesn't bring them back. `npm run seed` does the same on demand.
+48. **"Use this price" rounds up to the next penny** (or the configured 5p/10p/50p step), so filling in the suggested price never lands a fraction below target.
+49. **Dish list filter "below target only"** includes both "Under target" and "Below alert".
+50. **Delivery "Price"** follows formula 8 exactly: it keeps the dine-in GP in pounds after commission and packaging. "For target" is the price that keeps the target GP %. Both are labelled on screen.
+51. **Inactive dishes** are hidden from the list by default (toggle "Show inactive") and left out of the delivery screen, but included in exports.
+52. **Not done (deliberately):** an in-app restore upload (too risky for a one-click action; use `npm run restore`), rejecting unknown form fields (only known fields are ever read), and a per-request audit log.
