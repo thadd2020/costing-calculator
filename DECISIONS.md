@@ -62,3 +62,14 @@ Calls made where the brief was silent or reality differed. Newest at the bottom.
 50. **Delivery "Price"** follows formula 8 exactly: it keeps the dine-in GP in pounds after commission and packaging. "For target" is the price that keeps the target GP %. Both are labelled on screen.
 51. **Inactive dishes** are hidden from the list by default (toggle "Show inactive") and left out of the delivery screen, but included in exports.
 52. **Not done (deliberately):** an in-app restore upload (too risky for a one-click action; use `npm run restore`), rejecting unknown form fields (only known fields are ever read), and a per-request audit log.
+
+## Test and debug pass (15 Oct 2026, branch `test/debug-pass`)
+
+53. **Test runner stays `node:test`** (brief section 2), not Vitest or Jest. The existing fetch-based client in `test/helpers/client.js` already does what supertest would (cookies, CSRF, forms, uploads), so supertest wasn't added.
+54. **New devDependency: `playwright`** (Microsoft, actively maintained) for the end-to-end UI suite in `test/e2e/` (`npm run test:e2e`, desktop and 360px). It is never imported by the app. Its browsers are not downloaded on `npm install`; locally run `npx playwright install chromium` once. On SiteGround, `npm install` will still fetch the package itself (a few MB) unless dev dependencies are omitted; that's harmless.
+55. **GP status uses a 1e-9 tolerance** at the target and alert lines, so float noise (0.6999999999999998) can't show a dish priced exactly on target as "Under target".
+56. **A comma in a number is only a thousands separator** ("1,234.50"). "12,50", "0,500" or "1,2,3" are refused with a message instead of being read as 1250, 500 or 123. UK users type a decimal point; anyone with a European export gets an error rather than a price 100 times too high.
+57. **CSV files that aren't UTF-8 are read as Windows-1252** (Excel's plain "CSV (Comma delimited)"), unless the file already contains valid UTF-8 accents or symbols, in which case one stray byte doesn't re-decode the whole file.
+58. **A blank optional cell in an import (category, vat_rate, waste_pct) leaves an existing ingredient's saved value alone**, whether the column is missing or the cell is empty. New ingredients still get the defaults (blank, 0%, 5%). Before, a price-only supplier list reset every matched ingredient's VAT and waste. To clear a category, edit the ingredient.
+59. **Repeated form fields are refused (400)** for everything except recipe lines (`line_ingredient`, `line_quantity`, `line_unit`). Express turns a repeated field into an array, and `String(['1','000'])` is "1,000".
+60. **Post-import dish impact** now covers ingredients whose pack size, pack unit or waste changed, not only their price.

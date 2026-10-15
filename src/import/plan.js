@@ -9,16 +9,13 @@ const sameValue = (a, b) => (typeof a === 'number' || typeof b === 'number'
   ? Math.abs(Number(a) - Number(b)) < 1e-9
   : String(a) === String(b));
 
-// Optional columns whose saved value is kept when the file doesn't have that column.
-const KEEP_IF_ABSENT = ['category', 'vat_rate', 'waste_pct'];
-
 // Returns { items, counts }. Each item is { row, action, data, existing?, oldPrice?, newPrice?, changePct? }
 // where action is 'new', 'price_changed', 'details_changed' or 'unchanged'.
-// `present` lists the columns the file had; null (older batches) means all of them.
-export function planImport(rows, existingIngredients, rejectedCount = 0, present = null) {
-  const kept = present ? KEEP_IF_ABSENT.filter((c) => !present.includes(c)) : [];
+// Fields a row left blank (row.blank) keep the saved value, so a price-only supplier list
+// doesn't reset category, VAT or waste. New ingredients get the defaults instead.
+export function planImport(rows, existingIngredients, rejectedCount = 0) {
   const byKey = new Map(existingIngredients.map((i) => [key(i.name, i.supplier), i]));
-  const items = rows.map(({ row, data }) => {
+  const items = rows.map(({ row, data, blank = [] }) => {
     const existing = byKey.get(key(data.name, data.supplier));
     if (!existing) return { row, action: 'new', data, newPrice: data.pack_price_ex_vat };
     // Keep the saved spelling of name and supplier.
@@ -26,7 +23,7 @@ export function planImport(rows, existingIngredients, rejectedCount = 0, present
       row,
       data: {
         ...data,
-        ...Object.fromEntries(kept.map((c) => [c, existing[c]])),
+        ...Object.fromEntries(blank.map((f) => [f, existing[f]])),
         name: existing.name,
         supplier: existing.supplier,
       },

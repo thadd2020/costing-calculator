@@ -9,6 +9,8 @@ export const TEMPLATE_COLUMNS = ['name', 'supplier', 'category', 'pack_size', 'p
 export const MAX_ROWS = 5000;
 export const MAX_BYTES = 2 * 1024 * 1024;
 const REQUIRED = ['name', 'pack_size', 'pack_unit', 'pack_price'];
+// Optional fields where a blank means "no change" for an ingredient that already exists.
+const OPTIONAL_KEPT = ['category', 'vat_rate', 'waste_pct'];
 
 // Header aliases, after lower-casing and turning spaces/dashes into underscores.
 const HEADER_ALIASES = {
@@ -27,33 +29,32 @@ export const normaliseHeader = (h) => String(h).replace(/^﻿/, '').trim().toLow
 
 // Picks the delimiter that appears most in the header line: comma, semicolon or tab.
 function detectDelimiter(text) {
-  const firstLine = text.split(/\r?\n|\r/).find((line) => line.trim() !== '') || '';
+  const firstLine = text.match(/[^\r\n]*\S[^\r\n]*/)?.[0] || '';
   const counts = [',', ';', '\t'].map((d) => [d, firstLine.split(d).length - 1]);
   counts.sort((a, b) => b[1] - a[1]);
   return counts[0][1] > 0 ? counts[0][0] : ',';
 }
 
 // Excel's plain "CSV (Comma delimited)" saves as Windows-1252, not UTF-8. If the bytes aren't
-// valid UTF-8, read them as Windows-1252 so "Crème" and "£" survive.
+// valid UTF-8 and contain no UTF-8 accents or symbols at all, read them as Windows-1252 so
+// "Crème" and "£" survive. A UTF-8 file with one stray bad byte stays UTF-8.
 function decode(buffer) {
-  try {
-    return new TextDecoder('utf-8', { fatal: true }).decode(buffer);
-  } catch {
-    return new TextDecoder('windows-1252').decode(buffer);
-  }
+  const utf8 = new TextDecoder('utf-8').decode(buffer);
+  if (!utf8.includes('\uFFFD') || /[^\u0000-\u007F\uFFFD\uFEFF]/.test(utf8)) return utf8;
+  return new TextDecoder('windows-1252').decode(buffer);
 }
 
 const key = (name, supplier) => `${name.toLowerCase()}\u0000${supplier.toLowerCase()}`;
 
-// Returns { rows, errors, fatal, columns, present }.
-//   present: the template columns the file actually has (a price-only list may lack category,
-//            vat_rate or waste_pct, and then matched ingredients keep their saved values)
-//   rows:   [{ row, data: { name, supplier, category, pack_size, pack_unit, pack_price_ex_vat, vat_rate, waste_pct }, raw }]
+// Returns { rows, errors, fatal, columns }.
+//   rows:   [{ row, data: { name, supplier, category, pack_size, pack_unit, pack_price_ex_vat, vat_rate, waste_pct }, blank, raw }]
+//           blank lists the optional fields left empty (or with no column at all); for an
+//           ingredient that already exists, those keep their saved values (see plan.js)
 //   errors: [{ row, field, message, raw }]
 //   fatal:  string when the whole file is unusable (then rows and errors are empty)
 // `row` is the line number in the file, counting the header as row 1, like a spreadsheet.
 export function parseIngredientCsv(buffer) {
-  const empty = (fatal) => ({ rows: [], errors: [], fatal, columns: [], present: [] });
+  const empty = (fatal) => ({ rows: [], errors: [], fatal, columns: [] });
   if (!buffer || buffer.length === 0) return empty('The file is empty.');
   if (buffer.length > MAX_BYTES) return empty('The file is larger than 2 MB. Split it into smaller files.');
   const text = decode(buffer).replace(/^﻿/, '');
@@ -105,10 +106,10 @@ export function parseIngredientCsv(buffer) {
       continue;
     }
     seen.set(k, rowNumber);
-    rows.push({ row: rowNumber, data: result.data, raw });
+    const blank = OPTIONAL_KEPT.filter((f) => String(raw[f] ?? '').trim() === '');
+    rows.push({ row: rowNumber, data: result.data, blank, raw });
   }
-  const present = TEMPLATE_COLUMNS.filter((c) => columns.includes(c));
-  return { rows, errors, fatal: null, columns: TEMPLATE_COLUMNS, present };
+  return { rows, errors, fatal: null, columns: TEMPLATE_COLUMNS };
 }
 
 function validateRow(raw, row) {

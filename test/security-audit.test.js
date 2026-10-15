@@ -233,8 +233,22 @@ for (const { name, create } of testDatabases()) {
       // pack_size=1&pack_size=000 arrives as ['1','000']; String() gives "1,000", read as a thousands separator -> 1000.
       const res = await c.post('/ingredients', { name: 'Audit array', pack_size: ['1', '000'], pack_unit: 'g', pack_price: ['1', '500'] });
       const saved = (await listIngredients(db)).find((i) => i.name === 'Audit array');
-      assert.equal(res.status, 422, `saved as pack_size=${saved?.pack_size}, price=${saved?.pack_price_ex_vat}`);
+      assert.ok(res.status >= 400 && res.status < 500, `saved as pack_size=${saved?.pack_size}, price=${saved?.pack_price_ex_vat}`);
       assert.equal(saved, undefined);
+    });
+
+    test('repeated fields on the dish form cannot slip through String() either', async () => {
+      const before = (await c.get(`/dishes/${ids.dish}`)).body;
+      const res = await c.post(`/dishes/${ids.dish}`, { name: 'Audit dish', type: 'food', menu_price: ['1', '000'], yield_portions: '1', active: '1' });
+      assert.equal(res.status, 400);
+      const after = (await c.get(`/dishes/${ids.dish}`)).body;
+      assert.doesNotMatch(after, /1000\.00|1,000\.00/);
+      assert.ok(before.length > 0);
+    });
+
+    test('recipe line fields may still repeat', async () => {
+      const res = await c.post('/dishes', { name: 'Two lines', type: 'food', menu_price: '10', line_ingredient: ['', ''], line_quantity: ['', ''], line_unit: ['g', 'g'] });
+      assert.equal(res.status, 302);
     });
 
     test('bracketed array keys and other odd shapes never crash the server', async () => {
@@ -244,7 +258,7 @@ for (const { name, create } of testDatabases()) {
         assert.ok(res.status < 500, `${path} -> ${res.status}`);
       }
       const pw = await c.post('/settings/password', { current_password: ['password', 'password'], new_password: ['a'], confirm_password: ['a'] });
-      assert.equal(pw.status, 422);
+      assert.ok(pw.status >= 400 && pw.status < 500);
     });
 
     test('prototype-pollution keys in bodies and query strings do nothing', async () => {
@@ -580,7 +594,8 @@ for (const { name, create } of testDatabases()) {
       const anon = app.client();
       await anon.get('/login');
       const arr = await anon.post('/login', { password: ['password', 'password'] });
-      assert.equal(arr.status, 401);
+      assert.ok(arr.status === 400 || arr.status === 401, String(arr.status));
+      assert.equal(arr.location, null, 'never logged in');
       const missing = await anon.post('/login', {});
       assert.equal(missing.status, 401);
     });

@@ -282,18 +282,21 @@ export function costDish(dish, lines, settings, channels = []) {
 
 // ---------- Display formatting (rounding happens only here) ----------
 
-// signDisplay 'negative' stops tiny negatives rounding to "-£0.00" or "-0.0%".
-const gbp = new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP', signDisplay: 'negative' });
-const pct1 = new Intl.NumberFormat('en-GB', { style: 'percent', minimumFractionDigits: 1, maximumFractionDigits: 1, signDisplay: 'negative' });
+const gbp = new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' });
+const pct1 = new Intl.NumberFormat('en-GB', { style: 'percent', minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
+// Anything that rounds to zero is shown as zero, so tiny negatives never read "-£0.00" or
+// "-0.0%". (Intl's signDisplay option does this too, but throws on older phone browsers.)
 export function formatGBP(value) {
   const n = num(value);
-  return n === null ? 'n/a' : gbp.format(n);
+  if (n === null) return 'n/a';
+  return gbp.format(Math.abs(n) < 0.005 ? 0 : n);
 }
 
 export function formatPct(value) {
   const n = num(value);
-  return n === null ? 'n/a' : pct1.format(n);
+  if (n === null) return 'n/a';
+  return pct1.format(Math.abs(n) < 0.0005 ? 0 : n);
 }
 
 // Pounds to integer pence for storing menu prices. toFixed(6) first clears float error in

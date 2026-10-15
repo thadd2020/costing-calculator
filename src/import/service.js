@@ -17,11 +17,11 @@ export class ImportError extends Error {}
 export async function previewImport(db, { filename, buffer }) {
   const parsed = parseIngredientCsv(buffer);
   if (parsed.fatal) return { fatal: parsed.fatal };
-  const plan = planImport(parsed.rows, await listIngredients(db), parsed.errors.length, parsed.present);
+  const plan = planImport(parsed.rows, await listIngredients(db), parsed.errors.length);
   await discardStaleImports(db, new Date(Date.now() - 24 * 3600 * 1000).toISOString());
   const batchId = await createImportBatch(db, {
     filename,
-    payload: { rows: parsed.rows.map(({ row, data }) => ({ row, data })), errors: parsed.errors, present: parsed.present },
+    payload: { rows: parsed.rows.map(({ row, data, blank }) => ({ row, data, blank })), errors: parsed.errors },
     summary: plan.counts,
   });
   return { batchId };
@@ -36,14 +36,13 @@ export async function commitImport(db, batchId) {
     if (!batch) return { error: 'not_found' };
     if (batch.status !== 'previewed') return { error: batch.status };
 
-    const plan = planImport(batch.payload.rows, await listIngredients(tx), batch.payload.errors.length, batch.payload.present);
+    const plan = planImport(batch.payload.rows, await listIngredients(tx), batch.payload.errors.length);
     // Pack size, unit and waste change a dish's cost just as a price change does.
     const changesCost = (i) => i.action === 'price_changed'
       || (i.action === 'details_changed' && i.changedFields.some((f) => COST_FIELDS.includes(f)));
     const changingIds = plan.items.filter(changesCost).map((i) => i.existingId);
     const affectedDishIds = await dishIdsUsingIngredients(tx, changingIds);
     const before = new Map((await costDishes(tx, { dishIds: affectedDishIds })).map((d) => [d.dish.id, d.result]));
-    const priceChangedIds = [];
     for (const item of plan.items) {
       if (item.action === 'new') {
         const res = await createIngredient(tx, item.data, 'import');
@@ -51,7 +50,6 @@ export async function commitImport(db, batchId) {
         if (res.error) throw new ImportError(`Row ${item.row}: ${item.data.name} clashes with an existing ingredient of almost the same name. Rename one and try again.`);
       } else if (item.action === 'price_changed' || item.action === 'details_changed') {
         await updateIngredient(tx, item.existingId, item.data, 'import');
-        if (item.action === 'price_changed') priceChangedIds.push(item.existingId);
       }
     }
     // GP of every dish that uses an ingredient whose cost changed, before and after.

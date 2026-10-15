@@ -3,8 +3,8 @@
 
 const DECIMAL = /^-?(\d+\.?\d*|\.\d+)$/;
 // Commas are only accepted as thousands separators ("1,234.50"), so a European decimal
-// comma ("1,5") is refused rather than silently read as 15.
-const THOUSANDS = /^-?\d{1,3}(,\d{3})+(\.\d*)?$/;
+// comma ("1,5" or "0,500") is refused rather than silently read as 15 or 500.
+const THOUSANDS = /^-?[1-9]\d{0,2}(,\d{3})+(\.\d*)?$/;
 
 // Plain decimal number; spaces and thousands commas are ignored: "5,000" -> 5000.
 export function parseNumber(text) {

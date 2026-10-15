@@ -592,3 +592,18 @@ describe('input parsing (money / percent fields)', () => {
     assert.equal(parseMoney('£12,5'), null);
   });
 });
+
+describe('code review follow-ups', () => {
+  test('"0,500" is a decimal comma, not 500', () => {
+    assert.equal(parseNumber('0,500'), null);
+    assert.equal(parseNumber('1,500'), 1500);
+    assert.equal(parseNumber('12,345,678.9'), 12345678.9);
+  });
+
+  test('display never shows a negative zero, without relying on Intl signDisplay', () => {
+    assert.equal(calc.formatGBP(-0.004), '£0.00');
+    assert.equal(calc.formatGBP(-0.006), '-£0.01');
+    assert.equal(calc.formatPct(-0.0004), '0.0%');
+    assert.equal(calc.formatPct(-0.0006), '-0.1%');
+  });
+});

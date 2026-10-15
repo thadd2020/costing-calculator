@@ -18,7 +18,7 @@ const BASE_UNIT = { mass: 'g', volume: 'ml', each: 'each' };
 function readNumber(text) {
   let cleaned = String(text ?? '').trim().replace(/^£/, '').replace(/\s/g, '');
   if (cleaned.includes(',')) {
-    if (!/^-?\d{1,3}(,\d{3})+(\.\d*)?$/.test(cleaned)) return null;
+    if (!/^-?[1-9]\d{0,2}(,\d{3})+(\.\d*)?$/.test(cleaned)) return null;
     cleaned = cleaned.replace(/,/g, '');
   }
   if (cleaned === '' || !/^-?(\d+\.?\d*|\.\d+)$/.test(cleaned)) return null;

@@ -35,6 +35,16 @@ export function isSafeReturnPath(value) {
   return typeof value === 'string' && /^\/(?![\/\\])/.test(value) && !/[\u0000-\u001f\\]/.test(value);
 }
 
+// Only recipe lines are sent as repeated fields. Any other field sent twice would arrive as an
+// array, and String(['1', '000']) reads as "1,000", so such requests are refused outright.
+const REPEATABLE = new Set(['line_ingredient', 'line_quantity', 'line_unit']);
+export function refuseRepeatedFields(req, res, next) {
+  const body = req.body && typeof req.body === 'object' ? req.body : {};
+  const repeated = Object.keys(body).some((k) => Array.isArray(body[k]) && !REPEATABLE.has(k));
+  if (!repeated) return next();
+  res.status(400).render('error', { title: 'Bad request', message: "That form couldn't be read. Go back, reload the page and try again." });
+}
+
 export function requireLogin(req, res, next) {
   if (req.session?.loggedIn) return next();
   if (req.method === 'GET') req.session.returnTo = req.originalUrl;

@@ -567,18 +567,33 @@ describe('import audit: columns missing from the file', () => {
 
   test('a price-only list keeps the saved category, VAT and waste of matched ingredients', () => {
     const parsed = parseIngredientCsv(Buffer.from('name,pack_size,pack_unit,pack_price\nHouse wine,75,ml,6\nNew thing,1,kg,2\n'));
-    assert.deepEqual(parsed.present, ['name', 'pack_size', 'pack_unit', 'pack_price']);
-    const plan = planImport(parsed.rows, [saved], 0, parsed.present);
+    assert.deepEqual(parsed.rows[0].blank, ['category', 'vat_rate', 'waste_pct']);
+    const plan = planImport(parsed.rows, [saved], 0);
     assert.equal(plan.items[0].action, 'unchanged');
     assert.deepEqual([plan.items[0].data.category, plan.items[0].data.vat_rate, plan.items[0].data.waste_pct], ['Wine', 0.2, 0.02]);
     // New ingredients still get the defaults.
     assert.deepEqual([plan.items[1].data.category, plan.items[1].data.vat_rate, plan.items[1].data.waste_pct], ['', 0, 0.05]);
   });
 
-  test('a column that is present but blank still means the default', () => {
+  test('a blank cell in a column that is present also keeps the saved value', () => {
     const parsed = parseIngredientCsv(Buffer.from('name,pack_size,pack_unit,pack_price,waste_pct\nHouse wine,75,ml,6,\n'));
-    const plan = planImport(parsed.rows, [saved], 0, parsed.present);
-    assert.equal(plan.items[0].data.waste_pct, 0.05);
-    assert.deepEqual(plan.items[0].changedFields, ['waste_pct']);
+    const plan = planImport(parsed.rows, [saved], 0);
+    assert.equal(plan.items[0].action, 'unchanged');
+    assert.equal(plan.items[0].data.waste_pct, 0.02);
+  });
+
+  test('a filled-in cell still updates the saved value', () => {
+    const parsed = parseIngredientCsv(Buffer.from('name,pack_size,pack_unit,pack_price,waste_pct,category\nHouse wine,75,ml,6,10%,Red wine\n'));
+    const plan = planImport(parsed.rows, [saved], 0);
+    assert.deepEqual(plan.items[0].changedFields, ['category', 'waste_pct']);
+    assert.deepEqual([plan.items[0].data.category, plan.items[0].data.waste_pct], ['Red wine', 0.1]);
+  });
+});
+
+describe('import audit: encoding fallback', () => {
+  test('a UTF-8 file with one stray bad byte keeps its UTF-8 accents', () => {
+    const buf = Buffer.concat([Buffer.from('name,pack_size,pack_unit,pack_price\nCrème fraîche,1,kg,2\nOdd'), Buffer.from([0xa0]), Buffer.from('thing,1,kg,3\n')]);
+    const r = parseIngredientCsv(buf);
+    assert.equal(r.rows[0].data.name, 'Crème fraîche');
   });
 });

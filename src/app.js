@@ -8,7 +8,7 @@ import session from 'express-session';
 import helmet from 'helmet';
 import { ping } from './db/index.js';
 import { DbSessionStore } from './session-store.js';
-import { csrfToken, csrfUnlessMultipart, requireLogin } from './security.js';
+import { csrfToken, csrfUnlessMultipart, refuseRepeatedFields, requireLogin } from './security.js';
 import { formatGBP, formatPct, STATUS } from './calc/calc.js';
 import { formatDate, formatDateTime, formatPackPrice, formatQty, unitCostLabel, moneyInput, percentInput } from './format.js';
 import authRoutes from './routes/auth.js';
@@ -61,6 +61,7 @@ export function createApp({ db, config }) {
   app.use('/static', express.static(path.join(ROOT, 'public'), { maxAge: config.isProduction ? '1h' : 0 }));
 
   app.use(express.urlencoded({ extended: false, limit: '200kb', parameterLimit: 5000 }));
+  app.use(refuseRepeatedFields);
 
   const store = new DbSessionStore(db);
   app.locals.sessionStore = store;
@@ -106,7 +107,7 @@ export function createApp({ db, config }) {
 
   // Log the error server-side; never show stack traces or details to the browser.
   app.use((err, req, res, next) => {
-    if (err.type === 'entity.too.large') {
+    if (err.type === 'entity.too.large' || err.type === 'parameters.too.many') {
       return res.status(413).render('error', { title: 'Too much data', message: 'That form was too large to save. Try fewer recipe lines at once.' });
     }
     if (res.headersSent) return next(err);
