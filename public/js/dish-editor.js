@@ -14,8 +14,13 @@ const byLabel = new Map(data.ingredients.map((i) => [labelOf(i).toLowerCase(), i
 const BASE_UNIT = { mass: 'g', volume: 'ml', each: 'each' };
 
 // Same forgiving rules as the server: "£1,250.50" -> 1250.5; blank -> null.
+// A comma is only a thousands separator, so "1,5" is refused rather than read as 15.
 function readNumber(text) {
-  const cleaned = String(text ?? '').trim().replace(/^£/, '').replace(/[\s,]/g, '');
+  let cleaned = String(text ?? '').trim().replace(/^£/, '').replace(/\s/g, '');
+  if (cleaned.includes(',')) {
+    if (!/^-?\d{1,3}(,\d{3})+(\.\d*)?$/.test(cleaned)) return null;
+    cleaned = cleaned.replace(/,/g, '');
+  }
   if (cleaned === '' || !/^-?(\d+\.?\d*|\.\d+)$/.test(cleaned)) return null;
   return Number(cleaned);
 }

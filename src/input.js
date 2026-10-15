@@ -2,11 +2,18 @@
 // Each returns a number, or null when the text isn't usable. Empty text is null.
 
 const DECIMAL = /^-?(\d+\.?\d*|\.\d+)$/;
+// Commas are only accepted as thousands separators ("1,234.50"), so a European decimal
+// comma ("1,5") is refused rather than silently read as 15.
+const THOUSANDS = /^-?\d{1,3}(,\d{3})+(\.\d*)?$/;
 
 // Plain decimal number; spaces and thousands commas are ignored: "5,000" -> 5000.
 export function parseNumber(text) {
   if (text === null || text === undefined) return null;
-  const cleaned = String(text).trim().replace(/[\s,]/g, '');
+  let cleaned = String(text).trim().replace(/\s/g, '');
+  if (cleaned.includes(',')) {
+    if (!THOUSANDS.test(cleaned)) return null;
+    cleaned = cleaned.replace(/,/g, '');
+  }
   return DECIMAL.test(cleaned) ? Number(cleaned) : null;
 }
 

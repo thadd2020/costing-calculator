@@ -145,14 +145,18 @@ export const STATUS = {
   na: { key: 'na', label: 'n/a', icon: '–' },
 };
 
+// Float noise can leave a dish priced exactly on a threshold a hair below it
+// (0.6999999999999998), so thresholds are compared with this tolerance.
+const STATUS_EPSILON = 1e-9;
+
 // Formula 6. Returns one of the STATUS entries.
 export function gpStatus(gpPct, target, alert) {
   const g = num(gpPct);
   const t = num(target);
   const a = num(alert);
   if (g === null || t === null) return STATUS.na;
-  if (g >= t) return STATUS.on;
-  if (a === null || g >= a) return STATUS.under;
+  if (g >= t - STATUS_EPSILON) return STATUS.on;
+  if (a === null || g >= a - STATUS_EPSILON) return STATUS.under;
   return STATUS.below;
 }
 
@@ -176,7 +180,7 @@ export function roundUpToStep(amount, stepPence) {
   if (a === null) return null;
   if (step <= 0) return a;
   const steps = Math.ceil((a * 100) / step - 1e-9);
-  return (steps * step) / 100;
+  return (steps * step) / 100 + 0; // + 0 turns -0 into 0, so a zero cost never shows "-£0.00"
 }
 
 // Formula 7. Returns { exVat, incVat } or nulls. With rounding, the inc-VAT price is rounded
@@ -278,8 +282,9 @@ export function costDish(dish, lines, settings, channels = []) {
 
 // ---------- Display formatting (rounding happens only here) ----------
 
-const gbp = new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' });
-const pct1 = new Intl.NumberFormat('en-GB', { style: 'percent', minimumFractionDigits: 1, maximumFractionDigits: 1 });
+// signDisplay 'negative' stops tiny negatives rounding to "-£0.00" or "-0.0%".
+const gbp = new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP', signDisplay: 'negative' });
+const pct1 = new Intl.NumberFormat('en-GB', { style: 'percent', minimumFractionDigits: 1, maximumFractionDigits: 1, signDisplay: 'negative' });
 
 export function formatGBP(value) {
   const n = num(value);
@@ -291,8 +296,10 @@ export function formatPct(value) {
   return n === null ? 'n/a' : pct1.format(n);
 }
 
-// Pounds to integer pence for storing menu prices. Math.round handles 18.2 * 100 = 1819.9999.
+// Pounds to integer pence for storing menu prices. toFixed(6) first clears float error in
+// both directions (18.2 * 100 = 1819.9999..., 1.005 * 100 = 100.4999...), so a 3 dp entry
+// rounds half-up the same way it is displayed.
 export function poundsToPence(value) {
   const n = num(value);
-  return n === null ? null : Math.round(n * 100);
+  return n === null ? null : Math.round(Number((n * 100).toFixed(6)));
 }
