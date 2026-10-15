@@ -34,13 +34,6 @@ export function createApp({ db }) {
       'GP Costing Calculator - milestone 1 scaffold. Screens arrive in milestones 2 and 3.',
       `Database: ${db.client === 'mysql' ? 'MySQL' : 'SQLite'}, created ${created} (UK time)`,
       `Node ${process.version}`,
-      '',
-      // Temporary deploy diagnostic: which settings reach the app. Names and yes/no only,
-      // never values. Remove before real data.
-      `NODE_ENV: ${process.env.NODE_ENV || '(not set)'}`,
-      `DB_CLIENT: ${process.env.DB_CLIENT || '(not set)'}`,
-      ...['PORT', 'DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASSWORD']
-        .map((k) => `${k} set: ${process.env[k] ? 'yes' : 'no'}`),
     ].join('\n'));
   });
 

@@ -39,9 +39,9 @@ Redeploy the previous known-good commit. Back up the database file BEFORE any de
 - Cookies not sent because `secure` is set but the proxy isn't trusted
 
 ## Verified facts (fill in after the first successful deploy)
-- Node version:
-- Start command / port:
-- Env var location:
-- Persistent storage path:
-- Deploy trigger:
-- Gotchas found:
+- Node version: 22 (chosen in Site Tools > Node.js > Deployment Options)
+- Start command / port: `npm start`, no field to change it; `PORT` is injected at runtime
+- Env var location: Site Tools > Node.js > Deployment Options > Environment variables. Only deploys started after saving get them
+- Persistent storage path: none. Each deploy is a new folder under `public_html/.nodeapp/` (`latest` points at the live one) and the home folder isn't writable, so use SiteGround MySQL (Site Tools > Site > MySQL)
+- Deploy trigger: push to the linked branch on GitHub. An empty commit may not trigger a build
+- Gotchas found: SQLite in the app folder is wiped on every deploy; env vars saved after a deploy started don't apply until the next one
