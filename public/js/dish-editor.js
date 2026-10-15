@@ -3,6 +3,7 @@
 import {
   costDish, formatGBP, formatPct, poundsToPence, roundUpToStep, unitFamily, unitsForFamily,
 } from '/static/calc.js';
+import { parseMoney, parseNumber, parsePercentField } from '/static/input.js';
 
 const root = document.querySelector('[data-editor]');
 const form = document.getElementById('dish-form');
@@ -13,32 +14,17 @@ const labelOf = (i) => (i.supplier ? `${i.name} (${i.supplier})` : i.name);
 const byLabel = new Map(data.ingredients.map((i) => [labelOf(i).toLowerCase(), i]));
 const BASE_UNIT = { mass: 'g', volume: 'ml', each: 'each' };
 
-// Same forgiving rules as the server: "£1,250.50" -> 1250.5; blank -> null.
-// A comma is only a thousands separator, so "1,5" is refused rather than read as 15.
-function readNumber(text) {
-  let cleaned = String(text ?? '').trim().replace(/^£/, '').replace(/\s/g, '');
-  if (cleaned.includes(',')) {
-    if (!/^-?[1-9]\d{0,2}(,\d{3})+(\.\d*)?$/.test(cleaned)) return null;
-    cleaned = cleaned.replace(/,/g, '');
-  }
-  if (cleaned === '' || !/^-?(\d+\.?\d*|\.\d+)$/.test(cleaned)) return null;
-  return Number(cleaned);
-}
-const readPercent = (text) => {
-  const n = readNumber(String(text ?? '').replace(/%\s*$/, ''));
-  return n === null ? null : n / 100;
-};
 const field = (name) => form.elements.namedItem(name);
 
 function readDish() {
-  const price = readNumber(field('menu_price').value);
+  const price = parseMoney(field('menu_price').value);
   return {
     type: form.querySelector('input[name="type"]:checked')?.value === 'drink' ? 'drink' : 'food',
     menu_price_inc_pence: price === null ? null : poundsToPence(price),
-    yield_portions: field('yield_portions').value.trim() === '' ? 1 : readNumber(field('yield_portions').value),
-    vat_rate: readPercent(field('vat_rate').value),
-    target_gp: readPercent(field('target_gp').value),
-    packaging: readNumber(field('packaging').value),
+    yield_portions: field('yield_portions').value.trim() === '' ? 1 : parseNumber(field('yield_portions').value),
+    vat_rate: parsePercentField(field('vat_rate').value),
+    target_gp: parsePercentField(field('target_gp').value),
+    packaging: parseMoney(field('packaging').value),
   };
 }
 
@@ -73,7 +59,7 @@ function recalc() {
     if (!label && !qtyText.trim()) { lineInfo.push({ li, skip: true }); continue; }
     const ingredient = byLabel.get(label.toLowerCase()) || null;
     lineInfo.push({ li, index: lines.length, ingredient, label });
-    lines.push({ quantity: readNumber(qtyText), unit: li.querySelector('[data-unit]').value, ingredient });
+    lines.push({ quantity: parseNumber(qtyText), unit: li.querySelector('[data-unit]').value, ingredient });
   }
 
   const r = costDish(dish, lines, data.settings, data.channels);
@@ -181,8 +167,8 @@ root.querySelector('[data-add-line]').addEventListener('click', addLine);
 root.querySelector('[data-use-suggested]').addEventListener('click', (event) => {
   if (!event.currentTarget.dataset.price) return;
   field('menu_price').value = event.currentTarget.dataset.price;
-  dirty = true;
-  recalc();
+  // Setting .value doesn't fire 'input'; dispatch it so recalc and the unsaved warning run.
+  field('menu_price').dispatchEvent(new Event('input', { bubbles: true }));
 });
 form.addEventListener('input', (event) => { if (!linesList.contains(event.target)) recalc(); });
 form.addEventListener('change', (event) => { if (!linesList.contains(event.target)) recalc(); });

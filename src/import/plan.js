@@ -4,6 +4,8 @@ import { samePrice } from '../db/ingredients.js';
 const key = (name, supplier) => `${name.toLowerCase()}\u0000${supplier.toLowerCase()}`;
 // Name and supplier are the match key (case-insensitive), so a change of case alone isn't a change.
 const DETAIL_FIELDS = ['category', 'pack_size', 'pack_unit', 'vat_rate', 'waste_pct'];
+// The detail fields that change what a dish costs (besides the price itself).
+export const COST_FIELDS = ['pack_size', 'pack_unit', 'waste_pct'];
 
 const sameValue = (a, b) => (typeof a === 'number' || typeof b === 'number'
   ? Math.abs(Number(a) - Number(b)) < 1e-9

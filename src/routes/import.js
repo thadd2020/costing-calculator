@@ -1,11 +1,11 @@
 import { Router } from 'express';
 import multer from 'multer';
-import { getImportBatch, listIngredients, finishImportBatch } from '../db/index.js';
+import { getImportBatch, importBatchExists, listIngredients, finishImportBatch } from '../db/index.js';
 import { previewImport, commitImport, ImportError } from '../import/service.js';
 import { planImport } from '../import/plan.js';
 import { TEMPLATE_COLUMNS, MAX_BYTES } from '../import/parse.js';
 import { toCsv, sendCsv } from '../csv.js';
-import { verifyCsrf, flash } from '../security.js';
+import { verifyCsrf, flash, CSV_UPLOAD_PATH } from '../security.js';
 import { parseId } from '../input.js';
 
 // Memory storage only: uploads are never written to disk.
@@ -33,7 +33,7 @@ export default function importRoutes({ db }) {
     }]));
   });
 
-  router.post('/import/preview', (req, res, next) => {
+  router.post(CSV_UPLOAD_PATH, (req, res, next) => {
     upload.single('file')(req, res, (err) => {
       if (err) {
         const message = err.code === 'LIMIT_FILE_SIZE' ? 'That file is larger than 2 MB. Split it into smaller files.' : 'The upload failed. Choose a single CSV file and try again.';
@@ -87,10 +87,13 @@ export default function importRoutes({ db }) {
 
   router.post('/import/:batchId/discard', async (req, res, next) => {
     const id = parseId(req.params.batchId);
-    if (!id || !(await getImportBatch(db, id))) return next();
-    const discarded = await finishImportBatch(db, id, 'discarded', {});
-    if (discarded) flash(req, 'Import cancelled. Nothing was changed.');
-    else flash(req, 'This import had already been confirmed or cancelled, so there was nothing to cancel.', 'error');
+    if (!id) return next();
+    if (await finishImportBatch(db, id, 'discarded', {})) {
+      flash(req, 'Import cancelled. Nothing was changed.');
+    } else {
+      if (!(await importBatchExists(db, id))) return next();
+      flash(req, 'This import had already been confirmed or cancelled, so there was nothing to cancel.', 'error');
+    }
     res.redirect('/import');
   });
 

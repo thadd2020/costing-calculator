@@ -45,9 +45,7 @@
     </div>
   </form>
 
-  <% if (rows.length === 0) { %>
-    <div class="empty"><h2>No matches</h2><p>No dishes match these filters. <a href="/">Clear filters</a></p></div>
-  <% } else { %>
+  <% if (rows.length) { %>
     <div class="dish-head" aria-hidden="true"><span>Dish</span><span>True cost</span><span>Price inc VAT</span><span class="r">GP</span><span>Status</span></div>
     <ul class="dish-list">
       <% for (const { dish, result } of rows) { %>
@@ -64,7 +62,7 @@
         </li>
       <% } %>
     </ul>
-    <div class="empty" data-empty hidden><h2>No matches</h2><p>No dishes match this search.</p></div>
   <% } %>
+  <div class="empty" data-empty<%= rows.length ? ' hidden' : '' %>><h2>No matches</h2><p>No dishes match these filters. <a href="/">Clear filters</a></p></div>
 <% } %>
 <%- include('../partials/bottom', { scripts: ['/static/js/dish-list.js'] }) %>

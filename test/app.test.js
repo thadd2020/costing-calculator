@@ -31,6 +31,14 @@ for (const { name, create } of testDatabases()) {
       assert.equal(res.body, fs.readFileSync(new URL('../src/calc/calc.js', import.meta.url), 'utf8'));
     });
 
+    test('/static/input.js serves the same number parsers the server uses', async () => {
+      const res = await app.client().get('/static/input.js');
+      assert.equal(res.status, 200);
+      assert.match(res.headers.get('content-type'), /javascript/);
+      assert.equal(res.body, fs.readFileSync(new URL('../src/input.js', import.meta.url), 'utf8'));
+      assert.doesNotMatch(res.body, /^import /m, 'the browser copy must not import anything');
+    });
+
     test('every page needs a login', async () => {
       const anon = app.client();
       for (const path of ['/', '/dishes/new', '/ingredients', '/import', '/delivery', '/settings', '/export', '/export/backup', '/export/ingredients.csv']) {

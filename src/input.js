@@ -1,4 +1,5 @@
 // Forgiving parsers for numbers typed into forms or found in CSV files.
+// No imports: the browser loads this file too, as /static/input.js.
 // Each returns a number, or null when the text isn't usable. Empty text is null.
 
 const DECIMAL = /^-?(\d+\.?\d*|\.\d+)$/;
@@ -8,8 +9,7 @@ const THOUSANDS = /^-?[1-9]\d{0,2}(,\d{3})+(\.\d*)?$/;
 
 // Plain decimal number; spaces and thousands commas are ignored: "5,000" -> 5000.
 export function parseNumber(text) {
-  // A repeated form field arrives as an array; String(['1', '000']) would read as 1000.
-  if (text === null || text === undefined || typeof text === 'object') return null;
+  if (text === null || text === undefined) return null;
   let cleaned = String(text).trim().replace(/\s/g, '');
   if (cleaned.includes(',')) {
     if (!THOUSANDS.test(cleaned)) return null;
@@ -20,13 +20,13 @@ export function parseNumber(text) {
 
 // Like parseNumber, but a leading £ is allowed too: "£1,234.50" -> 1234.5.
 export function parseMoney(text) {
-  if (text === null || text === undefined || typeof text === 'object') return null;
+  if (text === null || text === undefined) return null;
   return parseNumber(String(text).trim().replace(/^(-?)\s*£/, '$1'));
 }
 
 // A form field labelled "%": "6" or "6%" -> 0.06. Always treated as a percentage.
 export function parsePercentField(text) {
-  if (text === null || text === undefined || typeof text === 'object') return null;
+  if (text === null || text === undefined) return null;
   const n = parseNumber(String(text).replace(/%\s*$/, ''));
   return n === null ? null : n / 100;
 }
@@ -71,6 +71,7 @@ export function parseUnit(text) {
 }
 
 export function cleanText(text, maxLength) {
+  // ?q=a&q=b arrives as an array (body fields can't: see refuseRepeatedFields).
   if (typeof text === 'object' && text !== null) return '';
   return String(text ?? '').replace(/\s+/g, ' ').trim().slice(0, maxLength);
 }

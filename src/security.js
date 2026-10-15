@@ -20,12 +20,14 @@ export function verifyCsrf(req, res, next) {
   });
 }
 
+export const CSV_UPLOAD_PATH = '/import/preview';
+
 // Applies CSRF to every state-changing request except the CSV upload, which checks it
 // after multer has parsed the multipart body (see routes/import.js). Any other multipart
 // request has no parsed body, so verifyCsrf refuses it.
-export function csrfUnlessMultipart(req, res, next) {
+export function csrfExceptCsvUpload(req, res, next) {
   if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
-  if (req.method === 'POST' && req.path === '/import/preview' && req.is('multipart/form-data')) return next();
+  if (req.method === 'POST' && req.path === CSV_UPLOAD_PATH && req.is('multipart/form-data')) return next();
   return verifyCsrf(req, res, next);
 }
 
@@ -41,8 +43,7 @@ const REPEATABLE = new Set(['line_ingredient', 'line_quantity', 'line_unit']);
 export function refuseRepeatedFields(req, res, next) {
   const body = req.body && typeof req.body === 'object' ? req.body : {};
   const repeated = Object.keys(body).some((k) => Array.isArray(body[k]) && !REPEATABLE.has(k));
-  if (!repeated) return next();
-  res.status(400).render('error', { title: 'Bad request', message: "That form couldn't be read. Go back, reload the page and try again." });
+  next(repeated ? Object.assign(new Error('Repeated form field'), { status: 400 }) : undefined);
 }
 
 export function requireLogin(req, res, next) {

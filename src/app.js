@@ -8,7 +8,7 @@ import session from 'express-session';
 import helmet from 'helmet';
 import { ping } from './db/index.js';
 import { DbSessionStore } from './session-store.js';
-import { csrfToken, csrfUnlessMultipart, refuseRepeatedFields, requireLogin } from './security.js';
+import { csrfToken, csrfExceptCsvUpload, refuseRepeatedFields, requireLogin } from './security.js';
 import { formatGBP, formatPct, STATUS } from './calc/calc.js';
 import { formatDate, formatDateTime, formatPackPrice, formatQty, unitCostLabel, moneyInput, percentInput } from './format.js';
 import authRoutes from './routes/auth.js';
@@ -58,6 +58,10 @@ export function createApp({ db, config }) {
   app.get('/static/calc.js', (req, res) => {
     res.type('application/javascript').sendFile(path.join(ROOT, 'src/calc/calc.js'));
   });
+  // Same for the number parsers, so the live editor reads "£1,250.50" exactly as the server does.
+  app.get('/static/input.js', (req, res) => {
+    res.type('application/javascript').sendFile(path.join(ROOT, 'src/input.js'));
+  });
   app.use('/static', express.static(path.join(ROOT, 'public'), { maxAge: config.isProduction ? '1h' : 0 }));
 
   app.use(express.urlencoded({ extended: false, limit: '200kb', parameterLimit: 5000 }));
@@ -89,7 +93,7 @@ export function createApp({ db, config }) {
     res.set('Cache-Control', 'no-store'); // pages hold cost data; don't keep them in shared caches
     next();
   });
-  app.use(csrfUnlessMultipart);
+  app.use(csrfExceptCsvUpload);
 
   const deps = { db, config };
   app.use(authRoutes(deps));
@@ -107,12 +111,12 @@ export function createApp({ db, config }) {
 
   // Log the error server-side; never show stack traces or details to the browser.
   app.use((err, req, res, next) => {
-    if (err.type === 'entity.too.large' || err.type === 'parameters.too.many') {
+    if (res.headersSent) return next(err);
+    // Client mistakes (malformed URL, repeated or too many form fields) are 4xx, not server errors.
+    const status = err.status || err.statusCode;
+    if (status === 413) {
       return res.status(413).render('error', { title: 'Too much data', message: 'That form was too large to save. Try fewer recipe lines at once.' });
     }
-    if (res.headersSent) return next(err);
-    // Client mistakes (malformed URL, too many form fields) are 4xx, not server errors.
-    const status = err.status || err.statusCode;
     if (status >= 400 && status < 500) {
       return res.status(status).render('error', { title: 'Bad request', message: "That request couldn't be understood. Go back and try again." });
     }

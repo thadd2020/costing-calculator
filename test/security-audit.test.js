@@ -410,7 +410,7 @@ for (const { name, create } of testDatabases()) {
     });
 
     test('multipart POSTs without a CSRF token are refused on routes other than the upload (cross-site form bypass)', async () => {
-      // csrfUnlessMultipart skips the check for ANY multipart request, but only /import/preview
+      // csrfUnlessMultipart (now csrfExceptCsvUpload) used to skip the check for ANY multipart request, but only /import/preview
       // re-checks it. Routes that don't read the body act on a forged multipart POST.
       const victim = await saveDish(db, null, { name: 'CSRF victim', type: 'food', menu_price_inc_pence: 100, vat_rate: null, target_gp: null, yield_portions: 1, packaging: null, active: 1, notes: '' }, []);
       const res = await multipartPost(c, `/dishes/${victim}/delete`);

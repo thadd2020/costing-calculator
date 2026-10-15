@@ -10,6 +10,10 @@ export async function createImportBatch(q, { filename, payload, summary }) {
   return insertId;
 }
 
+export async function importBatchExists(q, id) {
+  return Boolean(await q.get('SELECT id FROM import_batches WHERE id = ?', [id]));
+}
+
 export async function getImportBatch(q, id) {
   return parse(await q.get('SELECT id, created_at, filename, status, payload, summary FROM import_batches WHERE id = ?', [id]));
 }

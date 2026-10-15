@@ -4,6 +4,7 @@ if (form) {
   const input = form.querySelector('input');
   const items = [...document.querySelectorAll('.ing-list > li')];
   const count = document.querySelector('[data-ing-count]');
+  const empty = document.querySelector('[data-empty]');
   form.addEventListener('submit', (event) => event.preventDefault());
   input.addEventListener('input', () => {
     const q = input.value.trim().toLowerCase();
@@ -13,7 +14,6 @@ if (form) {
       if (!li.hidden) shown += 1;
     }
     if (count) count.textContent = shown;
-    const empty = document.querySelector('[data-empty]');
     if (empty) empty.hidden = shown > 0;
   });
 }

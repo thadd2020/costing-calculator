@@ -4,10 +4,8 @@ import {
   finishImportBatch, discardStaleImports, dishIdsUsingIngredients,
 } from '../db/index.js';
 import { parseIngredientCsv } from './parse.js';
-import { planImport } from './plan.js';
+import { planImport, COST_FIELDS } from './plan.js';
 import { costDishes } from '../costing.js';
-
-const COST_FIELDS = ['pack_size', 'pack_unit', 'waste_pct'];
 
 // A problem to show the owner; anything else is a bug and gets the generic error page.
 export class ImportError extends Error {}
