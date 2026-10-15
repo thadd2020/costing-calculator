@@ -1,0 +1,90 @@
+<%
+  const v = (k, fallback) => (values && values[k] !== undefined ? values[k] : fallback);
+%>
+<%- include('partials/top', { title }) %>
+<div class="page-head">
+  <h1>Settings</h1>
+  <a class="button secondary" href="/export">Export and backup</a>
+</div>
+
+<section class="panel" aria-labelledby="h-pricing">
+  <h2 id="h-pricing">Pricing</h2>
+  <%- include('partials/errors', { errors }) %>
+  <form method="post" action="/settings" novalidate>
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="field-row">
+      <div class="field">
+        <label for="target_gp_food">Target GP for food</label>
+        <div class="input-suffix"><input id="target_gp_food" name="target_gp_food" type="text" inputmode="decimal" value="<%= v('target_gp_food', percentInput(settings.target_gp_food)) %>"><span>%</span></div>
+      </div>
+      <div class="field">
+        <label for="target_gp_drink">Target GP for drinks</label>
+        <div class="input-suffix"><input id="target_gp_drink" name="target_gp_drink" type="text" inputmode="decimal" value="<%= v('target_gp_drink', percentInput(settings.target_gp_drink)) %>"><span>%</span></div>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="alert_gp">Alert below <span class="hint">GP under this shows red</span></label>
+        <div class="input-suffix"><input id="alert_gp" name="alert_gp" type="text" inputmode="decimal" value="<%= v('alert_gp', percentInput(settings.alert_gp)) %>"><span>%</span></div>
+      </div>
+      <div class="field">
+        <label for="vat_rate">VAT on sales</label>
+        <div class="input-suffix"><input id="vat_rate" name="vat_rate" type="text" inputmode="decimal" value="<%= v('vat_rate', percentInput(settings.vat_rate)) %>"><span>%</span></div>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="default_packaging">Delivery packaging <span class="hint">Per order</span></label>
+        <div class="input-prefix"><span>£</span><input id="default_packaging" name="default_packaging" type="text" inputmode="decimal" value="<%= v('default_packaging', moneyInput(settings.default_packaging)) %>"></div>
+      </div>
+      <div class="field">
+        <label for="round_up_to_pence">Round suggested prices up to</label>
+        <select id="round_up_to_pence" name="round_up_to_pence">
+          <% for (const step of roundingSteps) { const sel = String(v('round_up_to_pence', settings.round_up_to_pence)) === String(step); %>
+            <option value="<%= step %>"<%= sel ? ' selected' : '' %>><%= step === 0 ? 'No rounding (nearest penny up)' : `Next ${step}p` %></option>
+          <% } %>
+        </select>
+      </div>
+    </div>
+    <p class="hint">Suggested prices only ever round up, so they never drop below your target.</p>
+    <button type="submit">Save settings</button>
+  </form>
+</section>
+
+<section class="panel" id="channels" aria-labelledby="h-channels">
+  <h2 id="h-channels">Delivery channels</h2>
+  <% if (channelError) { %><div class="errors" role="alert"><p><%= channelError %></p></div><% } %>
+  <% for (const c of channels) { %>
+    <form class="channel-row" method="post" action="/settings/channels/<%= c.id %>" novalidate>
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <div><label for="ch-<%= c.id %>-name">Name</label><input id="ch-<%= c.id %>-name" name="name" type="text" value="<%= c.name %>" maxlength="100"></div>
+      <div><label for="ch-<%= c.id %>-comm">Commission</label><div class="input-suffix"><input id="ch-<%= c.id %>-comm" name="commission" type="text" inputmode="decimal" value="<%= percentInput(c.commission) %>"><span>%</span></div></div>
+      <div class="buttons">
+        <button type="submit" class="secondary">Save</button>
+        <button type="submit" class="quiet" formaction="/settings/channels/<%= c.id %>/delete" data-confirm-click="Remove <%= c.name %>?">Remove</button>
+      </div>
+    </form>
+  <% } %>
+  <form class="channel-row" method="post" action="/settings/channels" novalidate>
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div><label for="ch-new-name">New channel</label><input id="ch-new-name" name="name" type="text" maxlength="100" placeholder="e.g. Phone orders"></div>
+    <div><label for="ch-new-comm">Commission</label><div class="input-suffix"><input id="ch-new-comm" name="commission" type="text" inputmode="decimal" placeholder="0"><span>%</span></div></div>
+    <div class="buttons"><button type="submit">Add channel</button></div>
+  </form>
+</section>
+
+<section class="panel" id="password" aria-labelledby="h-password">
+  <h2 id="h-password">Change password</h2>
+  <% if (passwordError) { %><div class="errors" role="alert"><p><%= passwordError %></p></div><% } %>
+  <form method="post" action="/settings/password">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <input type="text" name="username" value="owner" autocomplete="username" hidden>
+    <div class="field"><label for="current_password">Current password</label><input id="current_password" name="current_password" type="password" autocomplete="current-password" required></div>
+    <div class="field-row">
+      <div class="field"><label for="new_password">New password <span class="hint">At least 10 characters</span></label><input id="new_password" name="new_password" type="password" autocomplete="new-password" minlength="10" required></div>
+      <div class="field"><label for="confirm_password">New password again</label><input id="confirm_password" name="confirm_password" type="password" autocomplete="new-password" minlength="10" required></div>
+    </div>
+    <button type="submit">Change password</button>
+  </form>
+</section>
+<%- include('partials/bottom', { scripts: ['/static/js/confirm.js'] }) %>

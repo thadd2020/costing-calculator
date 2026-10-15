@@ -1,0 +1,7 @@
+<%- include('partials/top', { title, csrfToken: locals.csrfToken || '', loggedIn: locals.loggedIn || false, path: locals.path || '', assetVersion: locals.assetVersion || '' }) %>
+<div class="empty">
+  <h1><%= title %></h1>
+  <p><%= message %></p>
+  <p><a class="button secondary" href="/">Back to dishes</a></p>
+</div>
+<%- include('partials/bottom', { assetVersion: locals.assetVersion || '' }) %>

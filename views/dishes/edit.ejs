@@ -1,0 +1,170 @@
+<%
+  const byId = new Map(ingredients.map((i) => [i.id, i]));
+  const labelOf = (i) => i.supplier ? `${i.name} (${i.supplier})` : i.name;
+  const shownLines = lines.length ? lines : [{ ingredient_id: null, quantity: '', unit: '' }];
+  const r = result;
+  const priceValue = dish.menu_price_inc_pence === null || dish.menu_price_inc_pence === undefined ? '' : (dish.menu_price_inc_pence / 100).toFixed(2);
+%>
+<%- include('../partials/top', { title }) %>
+<div class="page-head">
+  <h1><%= dish.id ? dish.name : (dish.type === 'drink' ? 'New drink' : 'New dish') %></h1>
+  <a class="button quiet" href="/">Back to dishes</a>
+</div>
+
+<%- include('../partials/errors', { errors }) %>
+
+<% if (!ingredients.length) { %>
+  <div class="empty">
+    <h2>Add ingredients first</h2>
+    <p>Dishes are built from your ingredient list, so it needs at least one ingredient with a pack size and price.</p>
+    <p><a class="button" href="/ingredients">Add ingredients</a> <a class="button secondary" href="/import">Import a price list</a></p>
+  </div>
+<% } %>
+
+<div class="editor" data-editor>
+  <form id="dish-form" method="post" action="<%= dish.id ? `/dishes/${dish.id}` : '/dishes' %>" novalidate>
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+    <section class="panel" aria-labelledby="h-dish">
+      <h2 id="h-dish">Dish</h2>
+      <div class="field">
+        <label for="name">Name</label>
+        <input id="name" name="name" type="text" value="<%= dish.name %>" required maxlength="200" autocomplete="off">
+      </div>
+      <fieldset>
+        <legend>Type</legend>
+        <div class="segmented">
+          <label><input type="radio" name="type" value="food"<%= dish.type !== 'drink' ? ' checked' : '' %>><span>Food</span></label>
+          <label><input type="radio" name="type" value="drink"<%= dish.type === 'drink' ? ' checked' : '' %>><span>Drink</span></label>
+        </div>
+      </fieldset>
+      <div class="field-row">
+        <div class="field">
+          <label for="menu_price">Menu price <span class="hint">Including VAT, as printed</span></label>
+          <div class="input-prefix"><span>£</span><input id="menu_price" name="menu_price" type="text" inputmode="decimal" value="<%= priceValue %>" autocomplete="off"></div>
+        </div>
+        <div class="field">
+          <label for="yield_portions">Portions <span class="hint">How many this recipe makes</span></label>
+          <input id="yield_portions" name="yield_portions" type="text" inputmode="decimal" value="<%= formatQty(dish.yield_portions) || dish.yield_portions %>" autocomplete="off">
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="h-lines">
+      <h2 id="h-lines">Ingredients</h2>
+      <datalist id="ingredient-options">
+        <% for (const i of ingredients) { %><option value="<%= labelOf(i) %>"></option><% } %>
+      </datalist>
+      <ol class="lines" data-lines>
+        <% shownLines.forEach((line, n) => { const ing = byId.get(line.ingredient_id); const lr = r.lines[n]; %>
+        <li class="line" data-line>
+          <div class="ing">
+            <label for="line-ing-<%= n %>">Ingredient</label>
+            <input id="line-ing-<%= n %>" name="line_ingredient" type="text" list="ingredient-options" value="<%= ing ? labelOf(ing) : (line.label || '') %>" placeholder="Start typing a name" autocomplete="off" data-ing-label>
+          </div>
+          <div>
+            <label for="line-qty-<%= n %>">Quantity</label>
+            <input id="line-qty-<%= n %>" name="line_quantity" type="text" inputmode="decimal" value="<%= line.quantity === null || line.quantity === undefined ? '' : line.quantity %>" autocomplete="off" data-qty>
+          </div>
+          <div>
+            <label for="line-unit-<%= n %>">Unit</label>
+            <select id="line-unit-<%= n %>" name="line_unit" data-unit>
+              <% for (const u of ['g', 'kg', 'ml', 'l', 'each']) { %>
+                <option value="<%= u %>"<%= (line.unit || (ing && ing.pack_unit)) === u ? ' selected' : '' %>><%= u %></option>
+              <% } %>
+            </select>
+          </div>
+          <div><button type="button" class="quiet" data-remove-line aria-label="Remove this ingredient">Remove</button></div>
+          <p class="cost"><span data-line-pack><%= ing ? formatPackPrice(ing) : '' %></span><b data-line-cost><%= lr && lr.cost !== null ? formatGBP(lr.cost) : '' %></b></p>
+          <p class="line-error" data-line-error><%= lr && lr.error && ing ? lr.error : '' %></p>
+        </li>
+        <% }) %>
+      </ol>
+      <button type="button" class="secondary" data-add-line>Add ingredient</button>
+    </section>
+
+    <details class="panel"<%= (dish.vat_rate !== null || dish.target_gp !== null || dish.packaging !== null || dish.notes || !dish.active) ? ' open' : '' %>>
+      <summary>More options</summary>
+      <div class="field-row">
+        <div class="field">
+          <label for="vat_rate">VAT rate <span class="hint">Blank uses <%= percentInput(settings.vat_rate) %>%</span></label>
+          <div class="input-suffix"><input id="vat_rate" name="vat_rate" type="text" inputmode="decimal" value="<%= percentInput(dish.vat_rate) %>" placeholder="<%= percentInput(settings.vat_rate) %>" autocomplete="off"><span>%</span></div>
+        </div>
+        <div class="field">
+          <label for="target_gp">Target GP <span class="hint">Blank uses <%= percentInput(dish.type === 'drink' ? settings.target_gp_drink : settings.target_gp_food) %>%</span></label>
+          <div class="input-suffix"><input id="target_gp" name="target_gp" type="text" inputmode="decimal" value="<%= percentInput(dish.target_gp) %>" placeholder="<%= percentInput(dish.type === 'drink' ? settings.target_gp_drink : settings.target_gp_food) %>" autocomplete="off"><span>%</span></div>
+        </div>
+      </div>
+      <div class="field">
+        <label for="packaging">Delivery packaging <span class="hint">Per order. Blank uses <%= formatGBP(settings.default_packaging) %></span></label>
+        <div class="input-prefix"><span>£</span><input id="packaging" name="packaging" type="text" inputmode="decimal" value="<%= moneyInput(dish.packaging) %>" placeholder="<%= moneyInput(settings.default_packaging) %>" autocomplete="off"></div>
+      </div>
+      <div class="field">
+        <label for="notes">Notes</label>
+        <textarea id="notes" name="notes" maxlength="2000"><%= dish.notes %></textarea>
+      </div>
+      <label class="check"><input type="checkbox" name="active" value="1"<%= dish.active ? ' checked' : '' %>> On the menu (active)</label>
+    </details>
+
+    <div class="save-bar">
+      <button type="submit">Save <%= dish.type === 'drink' ? 'drink' : 'dish' %></button>
+    </div>
+  </form>
+
+  <aside class="side" aria-label="Costing">
+    <div class="docket" data-docket aria-live="polite">
+      <div class="docket-main">
+        <div>
+          <div class="gp-figure" data-out="gpPct"><%= formatPct(r.gpPct) %></div>
+          <div class="gp-label">GP <span data-out="gpMoney"><%= formatGBP(r.gpMoney) %></span> per portion</div>
+        </div>
+        <div data-out="status"><%- include('../partials/status', { status: r.status }) %></div>
+      </div>
+      <p class="errors-inline" data-out="errors"><%= r.errors.length ? 'Cost incomplete: fix the ingredient lines marked in red.' : '' %></p>
+      <div class="suggest">
+        <div><span class="hint">For target GP</span> <b class="num" data-out="suggestedInc"><%= formatGBP(r.suggested.incVat) %></b></div>
+        <button type="button" class="secondary" data-use-suggested<%= r.suggested.incVat === null ? ' disabled' : '' %>>Use this price</button>
+      </div>
+    </div>
+
+    <section class="panel" aria-labelledby="h-costing">
+      <h2 id="h-costing">Costing</h2>
+      <dl class="costing">
+        <dt>True cost per portion</dt><dd data-out="trueCost"><%= formatGBP(r.trueCost) %></dd>
+        <dt>Price ex VAT</dt><dd data-out="priceEx"><%= formatGBP(r.priceEx) %></dd>
+        <dt>Target GP</dt><dd data-out="targetGp"><%= formatPct(r.rates.targetGp) %></dd>
+        <dt>Markup <span class="hint">Not the same as GP</span></dt><dd data-out="markupPct"><%= formatPct(r.markupPct) %></dd>
+      </dl>
+      <p class="hint">The price for target GP includes VAT<%= r.rates.roundStep ? ` and is rounded up to the next ${r.rates.roundStep}p` : '' %>.</p>
+    </section>
+
+    <% if (channels.length) { %>
+    <section class="panel" aria-labelledby="h-delivery">
+      <h2 id="h-delivery">Delivery</h2>
+      <table class="delivery-mini">
+        <thead><tr><th scope="col">Channel</th><th scope="col">Price</th><th scope="col">GP</th><th scope="col">For target</th></tr></thead>
+        <tbody>
+          <% r.delivery.forEach((d, i) => { %>
+          <tr data-channel="<%= i %>">
+            <th scope="row"><%= d.channelName %> <span class="hint"><%= formatPct(d.commission) %></span></th>
+            <td data-dout="incVat"><%= formatGBP(d.incVat) %></td>
+            <td data-dout="gpPct"><%= formatPct(d.gpPct) %></td>
+            <td data-dout="holdTargetIncVat"><%= formatGBP(d.holdTargetIncVat) %></td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+      <p class="hint">Prices inc VAT. "Price" keeps your dine-in profit in pounds after commission and packaging. "For target" keeps your target GP %.</p>
+    </section>
+    <% } %>
+
+    <% if (dish.id) { %>
+    <form method="post" action="/dishes/<%= dish.id %>/delete" data-confirm="Delete <%= dish.name %>? This can't be undone.">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <button type="submit" class="danger">Delete <%= dish.type === 'drink' ? 'drink' : 'dish' %></button>
+    </form>
+    <% } %>
+  </aside>
+</div>
+<div id="editor-data" hidden data-json="<%= JSON.stringify(editorData) %>"></div>
+<%- include('../partials/bottom', { scripts: ['/static/js/dish-editor.js', '/static/js/confirm.js'] }) %>

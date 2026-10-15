@@ -1,0 +1,59 @@
+<%
+  // v: values to show (an ingredient, or the submitted form after an error). idp: unique id prefix.
+  const isForm = v && Object.hasOwn(v, 'pack_price');
+  const val = (k) => (v && v[k] !== undefined && v[k] !== null ? v[k] : '');
+  const price = isForm ? val('pack_price') : (v && v.pack_price_ex_vat !== undefined ? moneyInput(v.pack_price_ex_vat) : '');
+  const waste = isForm ? val('waste_pct') : (v && v.waste_pct !== undefined ? percentInput(v.waste_pct) : '5');
+  const vat = isForm ? val('vat_rate') : String(v && v.vat_rate ? v.vat_rate : 0);
+  const unit = isForm ? val('pack_unit') : (v ? v.pack_unit : 'kg');
+%>
+<div class="field">
+  <label for="<%= idp %>-name">Name</label>
+  <input id="<%= idp %>-name" name="name" type="text" value="<%= val('name') %>" required maxlength="200" autocomplete="off">
+</div>
+<div class="field-row">
+  <div class="field">
+    <label for="<%= idp %>-supplier">Supplier <span class="hint">Optional</span></label>
+    <input id="<%= idp %>-supplier" name="supplier" type="text" value="<%= val('supplier') %>" maxlength="200" autocomplete="off">
+  </div>
+  <div class="field">
+    <label for="<%= idp %>-category">Category <span class="hint">Optional</span></label>
+    <input id="<%= idp %>-category" name="category" type="text" value="<%= val('category') %>" maxlength="100" autocomplete="off">
+  </div>
+</div>
+<div class="field-row">
+  <div class="field">
+    <label for="<%= idp %>-size">Pack size</label>
+    <input id="<%= idp %>-size" name="pack_size" type="text" inputmode="decimal" value="<%= isForm ? val('pack_size') : formatQty(val('pack_size')) %>" required autocomplete="off">
+  </div>
+  <div class="field">
+    <label for="<%= idp %>-unit">Pack unit</label>
+    <select id="<%= idp %>-unit" name="pack_unit">
+      <% for (const u of units) { %><option value="<%= u %>"<%= unit === u ? ' selected' : '' %>><%= u %></option><% } %>
+    </select>
+  </div>
+</div>
+<div class="field-row">
+  <div class="field">
+    <label for="<%= idp %>-price">Pack price</label>
+    <div class="input-prefix"><span>£</span><input id="<%= idp %>-price" name="pack_price" type="text" inputmode="decimal" value="<%= price %>" required autocomplete="off"></div>
+  </div>
+  <div class="field">
+    <label for="<%= idp %>-waste">Waste <span class="hint">Trim, spillage</span></label>
+    <div class="input-suffix"><input id="<%= idp %>-waste" name="waste_pct" type="text" inputmode="decimal" value="<%= waste %>" autocomplete="off"><span>%</span></div>
+  </div>
+</div>
+<div class="field-row">
+  <div class="field">
+    <label for="<%= idp %>-vat">VAT on this item</label>
+    <select id="<%= idp %>-vat" name="vat_rate">
+      <option value="0"<%= vat !== '0.2' ? ' selected' : '' %>>0% (zero-rated)</option>
+      <option value="0.2"<%= vat === '0.2' ? ' selected' : '' %>>20%</option>
+    </select>
+  </div>
+  <div class="field">
+    <span class="label">Price entered</span>
+    <label class="check"><input type="checkbox" name="price_includes_vat" value="1"<%= isForm && val('price_includes_vat') === '1' ? ' checked' : '' %>> Includes VAT</label>
+  </div>
+</div>
+<p class="hint">Prices are saved without VAT. Tick "Includes VAT" if you typed the price from a receipt that includes it; it's converted using the VAT rate above.</p>

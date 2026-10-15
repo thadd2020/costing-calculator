@@ -1,46 +1,117 @@
 // Builds the Express app. Kept separate from server.js so tests can create an app
 // around a temporary database without opening a port.
+import crypto from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
-import { ping, getSettings } from './db/index.js';
+import session from 'express-session';
+import helmet from 'helmet';
+import { ping } from './db/index.js';
+import { DbSessionStore } from './session-store.js';
+import { csrfToken, csrfUnlessMultipart, requireLogin } from './security.js';
+import { formatGBP, formatPct, STATUS } from './calc/calc.js';
+import { formatDate, formatDateTime, formatPackPrice, formatQty, unitCostLabel, moneyInput, percentInput } from './format.js';
+import authRoutes from './routes/auth.js';
+import dishRoutes from './routes/dishes.js';
+import ingredientRoutes from './routes/ingredients.js';
+import importRoutes from './routes/import.js';
+import exportRoutes from './routes/export.js';
+import deliveryRoutes from './routes/delivery.js';
+import settingsRoutes from './routes/settings.js';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
+const FOURTEEN_DAYS = 14 * 24 * 3600 * 1000;
 
-export function createApp({ db }) {
+export function createApp({ db, config }) {
   const app = express();
   app.set('trust proxy', 1); // behind SiteGround's proxy
   app.disable('x-powered-by');
+  app.set('view engine', 'ejs');
+  app.set('views', path.join(ROOT, 'views'));
+
+  app.use(helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'"],
+        imgSrc: ["'self'", 'data:'],
+        fontSrc: ["'self'"],
+        connectSrc: ["'self'"],
+        formAction: ["'self'"],
+        frameAncestors: ["'none'"],
+        objectSrc: ["'none'"],
+        baseUri: ["'self'"],
+        // Upgrading to https would break plain-http localhost during development.
+        upgradeInsecureRequests: config.isProduction ? [] : null,
+      },
+    },
+  }));
 
   // Unauthenticated deploy check: also proves the database is reachable.
   app.get('/healthz', async (req, res) => {
     await ping(db);
-    res.type('text').send('ok');
+    res.type('text').set('Cache-Control', 'no-store').send('ok');
   });
 
   // The calculation engine, served unchanged so the browser uses the same formulas as the server.
   app.get('/static/calc.js', (req, res) => {
     res.type('application/javascript').sendFile(path.join(ROOT, 'src/calc/calc.js'));
   });
+  app.use('/static', express.static(path.join(ROOT, 'public'), { maxAge: config.isProduction ? '1h' : 0 }));
 
-  // Temporary placeholder until milestone 3. Shows when the database was created, so a
-  // redeploy can be checked for data loss (the time must not change).
-  app.get('/', async (req, res) => {
-    const { installed_at: installedAt } = await getSettings(db);
-    const created = installedAt
-      ? new Date(installedAt).toLocaleString('en-GB', { timeZone: 'Europe/London', dateStyle: 'medium', timeStyle: 'medium' })
-      : 'unknown';
-    res.type('text').send([
-      'GP Costing Calculator - milestone 1 scaffold. Screens arrive in milestones 2 and 3.',
-      `Database: ${db.client === 'mysql' ? 'MySQL' : 'SQLite'}, created ${created} (UK time)`,
-      `Node ${process.version}`,
-    ].join('\n'));
+  app.use(express.urlencoded({ extended: false, limit: '200kb', parameterLimit: 5000 }));
+
+  const store = new DbSessionStore(db);
+  app.locals.sessionStore = store;
+  app.use(session({
+    name: 'gp.sid',
+    secret: config.sessionSecret,
+    store,
+    resave: false,
+    saveUninitialized: false,
+    cookie: { httpOnly: true, sameSite: 'lax', secure: config.isProduction, maxAge: FOURTEEN_DAYS },
+  }));
+
+  // Values every view can use. Changing assetVersion on each start busts browser caches.
+  const assetVersion = crypto.randomBytes(4).toString('hex');
+  app.use((req, res, next) => {
+    // Visitors who haven't logged in get a short-lived session (just enough for the login form).
+    if (!req.session.loggedIn) req.session.cookie.maxAge = 3600 * 1000;
+    res.locals.csrfToken = csrfToken(req);
+    res.locals.flash = req.session.flash || null;
+    delete req.session.flash;
+    res.locals.loggedIn = Boolean(req.session.loggedIn);
+    res.locals.path = req.path;
+    res.locals.assetVersion = assetVersion;
+    Object.assign(res.locals, { STATUS, formatGBP, formatPct, formatDate, formatDateTime, formatPackPrice, formatQty, unitCostLabel, moneyInput, percentInput });
+    res.set('Cache-Control', 'no-store'); // pages hold cost data; don't keep them in shared caches
+    next();
+  });
+  app.use(csrfUnlessMultipart);
+
+  const deps = { db, config };
+  app.use(authRoutes(deps));
+  app.use(requireLogin);
+  app.use(dishRoutes(deps));
+  app.use(ingredientRoutes(deps));
+  app.use(importRoutes(deps));
+  app.use(exportRoutes(deps));
+  app.use(deliveryRoutes(deps));
+  app.use(settingsRoutes(deps));
+
+  app.use((req, res) => {
+    res.status(404).render('error', { title: 'Not found', message: "That page doesn't exist. It may have been deleted." });
   });
 
   // Log the error server-side; never show stack traces or details to the browser.
   app.use((err, req, res, next) => {
+    if (err.type === 'entity.too.large') {
+      return res.status(413).render('error', { title: 'Too much data', message: 'That form was too large to save. Try fewer recipe lines at once.' });
+    }
     console.error(`${req.method} ${req.path} failed:`, err.message);
-    res.status(500).type('text').send('Something went wrong. Please try again.');
+    if (res.headersSent) return next(err);
+    res.status(500).render('error', { title: 'Something went wrong', message: 'Nothing was changed. Please try again; if it keeps happening, check the server logs.' });
   });
 
   return app;

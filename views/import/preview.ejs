@@ -1,0 +1,68 @@
+<%
+  const c = plan.counts;
+  const labels = { new: 'New', price_changed: 'Price change', details_changed: 'Details change' };
+%>
+<%- include('../partials/top', { title }) %>
+<div class="page-head">
+  <h1>Check the import</h1>
+</div>
+<p class="lede"><b><%= batch.filename %></b>. Nothing has been saved yet.</p>
+
+<ul class="counts">
+  <li><span class="figure"><%= c.new %></span><span class="k">New</span></li>
+  <li><span class="figure"><%= c.price_changed %></span><span class="k">Price changed</span></li>
+  <li><span class="figure"><%= c.details_changed %></span><span class="k">Other details changed</span></li>
+  <li><span class="figure"><%= c.unchanged %></span><span class="k">Unchanged</span></li>
+  <li class="<%= c.rejected ? 'bad' : '' %>"><span class="figure"><%= c.rejected %></span><span class="k">Rejected</span></li>
+</ul>
+
+<div class="confirm-bar">
+  <% if (changes.length) { %>
+  <form method="post" action="/import/<%= batch.id %>/commit">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <button type="submit">Import <%= changes.length %> <%= changes.length === 1 ? 'change' : 'changes' %></button>
+  </form>
+  <% } else { %>
+  <p><b>Nothing to import:</b> every valid row matches what you already have.</p>
+  <% } %>
+  <form method="post" action="/import/<%= batch.id %>/discard">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <button type="submit" class="secondary">Cancel</button>
+  </form>
+</div>
+
+<% if (errors.length) { %>
+<section class="panel" aria-labelledby="h-rejected">
+  <h2 id="h-rejected">Rejected rows</h2>
+  <p>These rows will be skipped. Download them, fix them and upload that file again.</p>
+  <p><a class="button secondary" href="/import/<%= batch.id %>/errors.csv">Download rejected rows</a></p>
+  <ul>
+    <% for (const e of errors.slice(0, 100)) { %><li><%= e.message %></li><% } %>
+  </ul>
+  <% if (errors.length > 100) { %><p class="hint">And <%= errors.length - 100 %> more in the download.</p><% } %>
+</section>
+<% } %>
+
+<% if (changes.length) { %>
+<h2>Changes</h2>
+<div class="table-wrap">
+  <table class="data stack">
+    <thead><tr><th scope="col">Ingredient</th><th scope="col">Change</th><th scope="col" class="n">Old price</th><th scope="col" class="n">New price</th><th scope="col" class="n">Change</th></tr></thead>
+    <tbody>
+      <% for (const item of changes.slice(0, 500)) { %>
+      <tr>
+        <td class="title"><%= item.data.name %><% if (item.data.supplier) { %> <span class="hint"><%= item.data.supplier %></span><% } %></td>
+        <td data-label="Change"><%= labels[item.action] %><% if (item.changedFields) { %>: <%= item.changedFields.map((f) => f.replace('_pct', '').replace('_', ' ')).join(', ') %><% } %></td>
+        <td class="n" data-label="Old price"><%= item.oldPrice === undefined ? '' : formatGBP(item.oldPrice) %></td>
+        <td class="n" data-label="New price"><%= formatGBP(item.newPrice) %> <span class="hint"><%= formatQty(item.data.pack_size) %> <%= item.data.pack_unit %></span></td>
+        <td class="n <%= item.changePct > 0 ? 'up' : (item.changePct < 0 ? 'down' : '') %>" data-label="Change">
+          <% if (item.changePct === null || item.changePct === undefined) { %><% } else { %><%= item.changePct > 0 ? '▲ +' : '▼ ' %><%= formatPct(item.changePct) %><% } %>
+        </td>
+      </tr>
+      <% } %>
+    </tbody>
+  </table>
+</div>
+<% if (changes.length > 500) { %><p class="hint">Showing the first 500 of <%= changes.length %> changes. All of them will be imported.</p><% } %>
+<% } %>
+<%- include('../partials/bottom') %>

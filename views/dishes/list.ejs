@@ -1,0 +1,69 @@
+<%- include('../partials/top', { title }) %>
+<div class="page-head">
+  <h1>Dishes</h1>
+  <div class="actions">
+    <a class="button" href="/dishes/new">Add dish</a>
+    <a class="button secondary" href="/dishes/new?type=drink">Add drink</a>
+  </div>
+</div>
+
+<% if (counts.total === 0) { %>
+  <div class="empty">
+    <h2>No dishes yet</h2>
+    <p>Add your ingredients first, then build each dish from them to see its cost and GP.</p>
+    <p><a class="button" href="/ingredients">Go to ingredients</a></p>
+  </div>
+<% } else { %>
+  <% if (counts.below > 0) { %>
+    <p class="summary-line"><%- include('../partials/status', { status: { key: 'below', icon: '✕', label: '' } }) %> <a href="/?below=1"><%= counts.below %> <%= counts.below === 1 ? 'dish is' : 'dishes are' %> below your alert threshold</a></p>
+  <% } %>
+
+  <form class="filters" method="get" action="/" role="search" data-dish-filters>
+    <div>
+      <label for="q" class="visually-hidden">Search dishes</label>
+      <input id="q" name="q" type="search" value="<%= filters.q %>" placeholder="Search dishes" autocomplete="off">
+    </div>
+    <div class="row">
+      <label for="type" class="visually-hidden">Type</label>
+      <select id="type" name="type">
+        <option value="">Food and drink</option>
+        <option value="food"<%= filters.type === 'food' ? ' selected' : '' %>>Food only</option>
+        <option value="drink"<%= filters.type === 'drink' ? ' selected' : '' %>>Drinks only</option>
+      </select>
+      <label for="sort" class="visually-hidden">Sort by</label>
+      <select id="sort" name="sort">
+        <option value="name"<%= filters.sort === 'name' ? ' selected' : '' %>>Sort: name</option>
+        <option value="gp"<%= filters.sort === 'gp' ? ' selected' : '' %>>Sort: lowest GP first</option>
+        <option value="cost"<%= filters.sort === 'cost' ? ' selected' : '' %>>Sort: highest cost</option>
+        <option value="price"<%= filters.sort === 'price' ? ' selected' : '' %>>Sort: highest price</option>
+      </select>
+    </div>
+    <div class="row">
+      <label class="chip-toggle"><input type="checkbox" name="below" value="1"<%= filters.below ? ' checked' : '' %>> Below target only</label>
+      <label class="chip-toggle"><input type="checkbox" name="inactive" value="1"<%= filters.inactive ? ' checked' : '' %>> Show inactive</label>
+      <button class="secondary" type="submit" data-hide-with-js>Apply</button>
+    </div>
+  </form>
+
+  <% if (rows.length === 0) { %>
+    <div class="empty"><h2>No matches</h2><p>No dishes match these filters. <a href="/">Clear filters</a></p></div>
+  <% } else { %>
+    <div class="dish-head" aria-hidden="true"><span>Dish</span><span>True cost</span><span>Price inc VAT</span><span class="r">GP</span><span>Status</span></div>
+    <ul class="dish-list">
+      <% for (const { dish, result } of rows) { %>
+        <li class="<%= dish.active ? '' : 'inactive' %>" data-name="<%= dish.name.toLowerCase() %>">
+          <a class="dish-row" href="/dishes/<%= dish.id %>">
+            <span class="name"><%= dish.name %><% if (dish.type === 'drink') { %> <span class="tag">Drink</span><% } %><% if (!dish.active) { %> <span class="tag">Inactive</span><% } %></span>
+            <span class="gp" aria-label="GP <%= formatPct(result.gpPct) %>"><%= formatPct(result.gpPct) %></span>
+            <span class="meta">
+              <span><span class="k">Cost </span><b><%= formatGBP(result.trueCost) %></b></span>
+              <span><span class="k">Price </span><b><%= formatGBP(result.menuInc) %></b></span>
+            </span>
+            <%- include('../partials/status', { status: result.status }) %>
+          </a>
+        </li>
+      <% } %>
+    </ul>
+  <% } %>
+<% } %>
+<%- include('../partials/bottom', { scripts: ['/static/js/dish-list.js'] }) %>

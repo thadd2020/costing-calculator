@@ -1,0 +1,6 @@
+</main>
+<% for (const src of (locals.scripts || [])) { %>
+<script type="module" src="<%= src %>?v=<%= assetVersion %>"></script>
+<% } %>
+</body>
+</html>

@@ -1,0 +1,15 @@
+<%- include('partials/top', { title: 'Log in', bare: true }) %>
+<div class="login-wrap">
+  <form class="login" method="post" action="/login">
+    <span class="brand">GP<span>/</span>Costing</span>
+    <p class="lede">Dish costs and gross profit for your menu.</p>
+    <% if (error) { %><div class="errors" role="alert"><p><%= error %></p></div><% } %>
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="field">
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required autofocus>
+    </div>
+    <button type="submit">Log in</button>
+  </form>
+</div>
+<%- include('partials/bottom') %>

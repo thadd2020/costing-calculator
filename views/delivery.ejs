@@ -1,0 +1,44 @@
+<%- include('partials/top', { title }) %>
+<div class="page-head">
+  <h1>Delivery prices</h1>
+</div>
+<% if (!channel) { %>
+  <div class="empty"><h2>No delivery channels</h2><p>Add Deliveroo, Uber Eats or your own site with its commission in Settings.</p><p><a class="button" href="/settings#channels">Add a channel</a></p></div>
+<% } else { %>
+  <form class="filters" method="get" action="/delivery" data-autosubmit>
+    <div class="row">
+      <label for="channel" class="visually-hidden">Channel</label>
+      <select id="channel" name="channel">
+        <% for (const c of channels) { %><option value="<%= c.id %>"<%= c.id === channel.id ? ' selected' : '' %>><%= c.name %>, <%= formatPct(c.commission) %> commission</option><% } %>
+      </select>
+      <button class="secondary" type="submit" data-hide-with-js>Show</button>
+    </div>
+  </form>
+  <p class="lede">The delivery price keeps the same profit in pounds as dine-in, after <%= channel.name %>'s <%= formatPct(channel.commission) %> commission and packaging. "For target GP" is the price that keeps your target GP %. All prices include VAT.</p>
+
+  <% if (!rows.length) { %>
+    <div class="empty"><h2>No dishes yet</h2><p><a href="/dishes/new">Add a dish</a> to see its delivery price.</p></div>
+  <% } else { %>
+  <div class="table-wrap">
+    <table class="data stack">
+      <thead><tr>
+        <th scope="col">Dish</th><th scope="col" class="n">Dine-in</th><th scope="col" class="n">Delivery price</th>
+        <th scope="col" class="n">Ex VAT</th><th scope="col" class="n">Delivery GP</th><th scope="col" class="n">For target GP</th>
+      </tr></thead>
+      <tbody>
+        <% for (const { dish, result, delivery: d } of rows) { %>
+        <tr>
+          <td class="title"><a href="/dishes/<%= dish.id %>"><%= dish.name %></a></td>
+          <td class="n" data-label="Dine-in"><%= formatGBP(result.menuInc) %></td>
+          <td class="n" data-label="Delivery price"><b><%= formatGBP(d.incVat) %></b></td>
+          <td class="n" data-label="Ex VAT"><%= formatGBP(d.exVat) %></td>
+          <td class="n" data-label="Delivery GP"><%= formatPct(d.gpPct) %></td>
+          <td class="n" data-label="For target GP (<%= formatPct(result.rates.targetGp) %>)"><%= formatGBP(d.holdTargetIncVat) %></td>
+        </tr>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+  <% } %>
+<% } %>
+<%- include('partials/bottom', { scripts: ['/static/js/autosubmit.js'] }) %>

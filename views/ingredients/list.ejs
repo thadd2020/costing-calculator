@@ -1,0 +1,75 @@
+<%- include('../partials/top', { title }) %>
+<div class="page-head">
+  <h1>Ingredients</h1>
+  <div class="actions">
+    <a class="button secondary" href="/import">Import CSV</a>
+    <a class="button secondary" href="/export/ingredients.csv">Export CSV</a>
+  </div>
+</div>
+
+<details class="panel" id="add"<%= formErrors && formErrors.which === 'new' ? ' open' : (total === 0 ? ' open' : '') %>>
+  <summary>Add an ingredient</summary>
+  <% if (formErrors && formErrors.which === 'new') { %><%- include('../partials/errors', { errors: formErrors.errors }) %><% } %>
+  <form method="post" action="/ingredients" novalidate>
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <%- include('form', { v: formErrors && formErrors.which === 'new' ? formValues : null, idp: 'new', units }) %>
+    <button type="submit">Add ingredient</button>
+  </form>
+</details>
+
+<% if (total === 0) { %>
+  <div class="empty">
+    <h2>No ingredients yet</h2>
+    <p>Add them one at a time above, or import a supplier price list in one go.</p>
+    <p><a class="button" href="/import">Import a price list</a></p>
+  </div>
+<% } else { %>
+  <form class="filters" method="get" action="/ingredients" role="search" data-ing-filter>
+    <label for="q" class="visually-hidden">Search ingredients</label>
+    <input id="q" name="q" type="search" value="<%= q %>" placeholder="Search name, supplier or category" autocomplete="off">
+  </form>
+  <p class="summary-line"><span data-ing-count><%= ingredients.length %></span> of <%= total %> ingredients<% if (recentImports.length) { %>. Last import <%= formatDate(recentImports[0].created_at) %><% } %>.</p>
+
+  <ul class="ing-list">
+    <% for (const i of ingredients) { const open = openId === i.id; const hist = history.get(i.id) || []; const err = formErrors && formErrors.which === i.id; %>
+    <li id="ingredient-<%= i.id %>" data-search="<%= `${i.name} ${i.supplier} ${i.category}`.toLowerCase() %>">
+      <details<%= open || err ? ' open' : '' %>>
+        <summary>
+          <span>
+            <span class="name"><%= i.name %></span>
+            <span class="sub"><%= [i.supplier, i.category].filter(Boolean).join(', ') || 'No supplier' %></span>
+          </span>
+          <span class="price"><%= formatGBP(i.pack_price_ex_vat) %><small><%= formatQty(i.pack_size) %> <%= i.pack_unit %></small></span>
+          <span class="facts">
+            <span><%= unitCostLabel(i) %></span>
+            <span>Waste <%= formatPct(i.waste_pct) %></span>
+            <span><%= i.used_in === 0 ? 'Not used yet' : `Used in ${i.used_in} ${i.used_in === 1 ? 'dish' : 'dishes'}` %></span>
+            <% if (i.last_price_change) { %><span>Price set <%= formatDate(i.last_price_change) %></span><% } %>
+          </span>
+        </summary>
+        <div class="ing-edit">
+          <% if (err) { %><%- include('../partials/errors', { errors: formErrors.errors }) %><% } %>
+          <% if (hist.length > 1) { %>
+            <p class="label">Recent prices</p>
+            <ul class="history">
+              <% for (const h of hist) { %><li><%= formatGBP(h.pack_price_ex_vat) %> from <%= formatDate(h.changed_at) %> (<%= h.source === 'import' ? 'import' : 'typed in' %>)</li><% } %>
+            </ul>
+          <% } %>
+          <form method="post" action="/ingredients/<%= i.id %>" novalidate>
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <%- include('form', { v: err ? formValues : i, idp: `i${i.id}`, units }) %>
+            <div class="buttons">
+              <button type="submit">Save changes</button>
+            </div>
+          </form>
+          <form method="post" action="/ingredients/<%= i.id %>/delete" data-confirm="Delete <%= i.name %>?">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <p><button type="submit" class="quiet">Delete ingredient</button></p>
+          </form>
+        </div>
+      </details>
+    </li>
+    <% } %>
+  </ul>
+<% } %>
+<%- include('../partials/bottom', { scripts: ['/static/js/ingredients.js', '/static/js/confirm.js'] }) %>

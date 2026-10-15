@@ -1,0 +1,38 @@
+<%- include('partials/top', { title }) %>
+<div class="page-head">
+  <h1>Export and backup</h1>
+  <a class="button quiet" href="/settings">Back to settings</a>
+</div>
+
+<section class="panel" aria-labelledby="h-downloads">
+  <h2 id="h-downloads">Download</h2>
+  <div class="download-list">
+    <div>
+      <a class="button secondary" href="/export/ingredients.csv">Ingredients CSV</a>
+      <p class="hint">Same columns as the import, so you can edit it in a spreadsheet and import it back.</p>
+    </div>
+    <div>
+      <a class="button secondary" href="/export/dishes.csv">Dishes CSV</a>
+      <p class="hint">Every dish with its cost, price, GP and recipe.</p>
+    </div>
+    <div>
+      <a class="button secondary" href="/export/backup">Full backup</a>
+      <p class="hint">Everything except your password, as one file. Keep it somewhere safe.</p>
+    </div>
+  </div>
+</section>
+
+<section class="panel" aria-labelledby="h-nightly">
+  <h2 id="h-nightly">Nightly backups</h2>
+  <p>A copy of everything is saved each night and the last 14 are kept. Your hosting company's daily backups keep a second copy elsewhere.</p>
+  <% if (!backups.length) { %>
+    <p class="hint">No nightly backup yet. The first one is made within an hour of the app starting.</p>
+  <% } else { %>
+    <ul class="backup-list">
+      <% for (const b of backups) { %>
+        <li><span><%= formatDateTime(b.created_at) %> <span class="hint"><%= Math.max(1, Math.round(b.size_bytes / 1024)) %> KB</span></span><a href="/export/backups/<%= b.id %>">Download</a></li>
+      <% } %>
+    </ul>
+  <% } %>
+</section>
+<%- include('partials/bottom') %>

@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#e6eaea" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#121718" media="(prefers-color-scheme: dark)">
+  <meta name="csrf-token" content="<%= csrfToken %>">
+  <title><%= title %> – GP Costing</title>
+  <link rel="stylesheet" href="/static/styles.css?v=<%= assetVersion %>">
+  <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+</head>
+<body<% if (locals.bare) { %> class="bare"<% } %>>
+<% if (!locals.bare) { %>
+<header class="topbar">
+  <a class="brand" href="/">GP<span>/</span>Costing</a>
+  <% if (loggedIn) { %>
+  <nav class="tabbar" aria-label="Main">
+    <% const tabs = [
+      { href: '/', label: 'Dishes', match: (p) => p === '/' || p.startsWith('/dishes'),
+        icon: '<path d="M4 13h16M6 13a6 6 0 0 1 12 0M12 7V5M3 17h18"/>' },
+      { href: '/ingredients', label: 'Ingredients', match: (p) => p.startsWith('/ingredients') || p.startsWith('/import'),
+        icon: '<path d="M7 4h10l1 4H6zM6 8h12v11a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1zM10 12h4"/>' },
+      { href: '/delivery', label: 'Delivery', match: (p) => p.startsWith('/delivery'),
+        icon: '<path d="M3 7h11v9H3zM14 10h4l3 3v3h-7M7 19a2 2 0 1 0 0-.01M17 19a2 2 0 1 0 0-.01"/>' },
+      { href: '/settings', label: 'Settings', match: (p) => p.startsWith('/settings') || p.startsWith('/export'),
+        icon: '<path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/>' },
+    ]; %>
+    <% for (const t of tabs) { %>
+      <a href="<%= t.href %>"<% if (t.match(path)) { %> aria-current="page"<% } %>>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><%- t.icon %></svg>
+        <%= t.label %>
+      </a>
+    <% } %>
+  </nav>
+  <form class="logout" method="post" action="/logout">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <button class="quiet" type="submit">Log out</button>
+  </form>
+  <% } %>
+</header>
+<% } %>
+<main id="main">
+<% if (locals.flash) { %>
+  <div class="flash<%= flash.kind === 'error' ? ' error' : '' %>" role="status"><%= flash.message %></div>
+<% } %>

@@ -1,0 +1,42 @@
+<%- include('../partials/top', { title }) %>
+<div class="page-head">
+  <h1>Import ingredients</h1>
+  <a class="button quiet" href="/ingredients">Back to ingredients</a>
+</div>
+<% if (error) { %><div class="errors" role="alert"><p><%= error %></p></div><% } %>
+
+<section class="panel">
+  <h2>Upload a price list</h2>
+  <p>Upload a CSV from your supplier or spreadsheet. You'll see every change before anything is saved.</p>
+  <form method="post" action="/import/preview" enctype="multipart/form-data">
+    <%# The token must come before the file so it is parsed first. %>
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="field">
+      <label for="file">CSV file <span class="hint">Up to 2 MB and 5,000 rows</span></label>
+      <input id="file" name="file" type="file" accept=".csv,text/csv" required>
+    </div>
+    <button type="submit">Check file</button>
+  </form>
+</section>
+
+<section class="panel">
+  <h2>What the file needs</h2>
+  <p>One row per ingredient, with these columns. Column names aren't case-sensitive, and common alternatives like <b>price</b>, <b>unit</b> and <b>size</b> work too.</p>
+  <table class="data stack">
+    <thead><tr><th scope="col">Column</th><th scope="col">Needed?</th><th scope="col">Example</th></tr></thead>
+    <tbody>
+      <tr><td class="title">name</td><td data-label="Needed?">Yes</td><td data-label="Example">Plain flour</td></tr>
+      <tr><td class="title">pack_size</td><td data-label="Needed?">Yes</td><td data-label="Example">16</td></tr>
+      <tr><td class="title">pack_unit</td><td data-label="Needed?">Yes</td><td data-label="Example">g, kg, ml, l or each</td></tr>
+      <tr><td class="title">pack_price</td><td data-label="Needed?">Yes</td><td data-label="Example">£12.00</td></tr>
+      <tr><td class="title">supplier</td><td data-label="Needed?">No</td><td data-label="Example">Brakes</td></tr>
+      <tr><td class="title">category</td><td data-label="Needed?">No</td><td data-label="Example">Dry goods</td></tr>
+      <tr><td class="title">price_includes_vat</td><td data-label="Needed?">No (default no)</td><td data-label="Example">yes or no</td></tr>
+      <tr><td class="title">vat_rate</td><td data-label="Needed?">No (default 0%)</td><td data-label="Example">0% or 20%</td></tr>
+      <tr><td class="title">waste_pct</td><td data-label="Needed?">No (default 5%)</td><td data-label="Example">6%</td></tr>
+    </tbody>
+  </table>
+  <p class="hint">An ingredient with the same name and supplier as one you already have is updated; anything else is added. Rows with problems are skipped and listed, so you can fix them and upload again.</p>
+  <p><a class="button secondary" href="/import/template.csv">Download template</a> <a class="button quiet" href="/export/ingredients.csv">Export current ingredients</a></p>
+</section>
+<%- include('../partials/bottom') %>

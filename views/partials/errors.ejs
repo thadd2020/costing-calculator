@@ -1,0 +1,6 @@
+<% if (errors && errors.length) { %>
+<div class="errors" role="alert">
+  <p><%= errors.length === 1 ? 'Fix this to save:' : `Fix these ${errors.length} things to save:` %></p>
+  <ul><% for (const e of errors) { %><li><%= e %></li><% } %></ul>
+</div>
+<% } %>

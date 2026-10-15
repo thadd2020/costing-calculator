@@ -1,5 +1,6 @@
 // The only module the rest of the app uses for data. Routes call these functions and never
-// see SQL or the driver. Two drivers share one async interface: SQLite (local development
+// see SQL or the driver. Every query function takes `q`, which is either the db or the
+// handle passed into db.transaction(), so callers can group calls in one transaction. Two drivers share one async interface: SQLite (local development
 // and tests) and MySQL (production). Queries here must work on both; see DECISIONS.md.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -50,32 +51,10 @@ export async function ping(db) {
   await db.get('SELECT 1 AS ok');
 }
 
-// ---------- Settings ----------
-
-const NUMERIC_SETTINGS = ['vat_rate', 'target_gp_food', 'target_gp_drink', 'alert_gp', 'default_packaging', 'round_up_to_pence'];
-
-// Returns settings as an object, with the numeric ones parsed to numbers.
-export async function getSettings(db) {
-  const out = {};
-  for (const { key, value } of await db.all('SELECT `key`, value FROM settings')) {
-    out[key] = NUMERIC_SETTINGS.includes(key) ? Number(value) : value;
-  }
-  return out;
-}
-
-// Update-then-insert rather than an upsert, because SQLite and MySQL spell upsert differently.
-export async function setSettings(db, values) {
-  await db.transaction(async (tx) => {
-    for (const [key, value] of Object.entries(values)) {
-      const { changes } = await tx.run('UPDATE settings SET value = ? WHERE `key` = ?', [String(value), key]);
-      if (changes === 0) await tx.run('INSERT INTO settings (`key`, value) VALUES (?, ?)', [key, String(value)]);
-    }
-  });
-}
-
-// ---------- Delivery channels ----------
-
-export async function listChannels(db) {
-  const rows = await db.all('SELECT id, name, commission FROM delivery_channels ORDER BY LOWER(name)');
-  return rows.map((r) => ({ ...r, commission: Number(r.commission) }));
-}
+export * from './settings.js';
+export * from './ingredients.js';
+export * from './dishes.js';
+export * from './channels.js';
+export * from './imports.js';
+export * from './sessions.js';
+export * from './backups.js';

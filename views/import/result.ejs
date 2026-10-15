@@ -1,0 +1,47 @@
+<%
+  const s = summary;
+  const nowBelow = (s.dishImpact || []).filter((d) => d.afterStatus === 'below');
+  const others = (s.dishImpact || []).filter((d) => d.afterStatus !== 'below');
+%>
+<%- include('../partials/top', { title }) %>
+<div class="page-head">
+  <h1>Import complete</h1>
+  <a class="button" href="/ingredients">View ingredients</a>
+</div>
+<p class="lede"><b><%= batch.filename %></b>, imported <%= formatDateTime(s.committed_at) %>.</p>
+<ul class="counts">
+  <li><span class="figure"><%= s.new %></span><span class="k">Added</span></li>
+  <li><span class="figure"><%= s.price_changed %></span><span class="k">Prices updated</span></li>
+  <li><span class="figure"><%= s.details_changed %></span><span class="k">Details updated</span></li>
+  <li><span class="figure"><%= s.unchanged %></span><span class="k">Unchanged</span></li>
+  <li class="<%= s.rejected ? 'bad' : '' %>"><span class="figure"><%= s.rejected %></span><span class="k">Skipped</span></li>
+</ul>
+<% if (s.rejected) { %><p><a href="/import/<%= batch.id %>/errors.csv">Download the skipped rows</a> to fix and import again.</p><% } %>
+
+<section class="panel" aria-labelledby="h-impact">
+  <h2 id="h-impact">Effect on your dishes</h2>
+  <% if (!(s.dishImpact || []).length) { %>
+    <p>No dishes use the ingredients whose price changed.</p>
+  <% } else { %>
+    <% if (nowBelow.length) { %>
+      <p><%- include('../partials/status', { status: { key: 'below', icon: '✕', label: `${nowBelow.length} ${nowBelow.length === 1 ? 'dish is' : 'dishes are'} now below your alert threshold` } }) %></p>
+    <% } else { %>
+      <p>No dish fell below your alert threshold.</p>
+    <% } %>
+    <table class="data stack">
+      <thead><tr><th scope="col">Dish</th><th scope="col" class="n">GP before</th><th scope="col" class="n">GP after</th><th scope="col">Status</th></tr></thead>
+      <tbody>
+        <% for (const d of [...nowBelow, ...others]) { %>
+        <tr>
+          <td class="title"><a href="/dishes/<%= d.id %>"><%= d.name %></a><% if (!d.active) { %> <span class="tag">Inactive</span><% } %></td>
+          <td class="n" data-label="GP before"><%= formatPct(d.beforePct) %></td>
+          <td class="n" data-label="GP after"><%= formatPct(d.afterPct) %></td>
+          <td data-label="Status"><%- include('../partials/status', { status: STATUS[d.afterStatus] }) %></td>
+        </tr>
+        <% } %>
+      </tbody>
+    </table>
+    <p class="hint">Figures are from the moment of this import. Open a dish to see its GP with today's prices.</p>
+  <% } %>
+</section>
+<%- include('../partials/bottom') %>

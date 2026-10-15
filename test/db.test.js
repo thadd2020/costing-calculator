@@ -21,9 +21,9 @@ const NOW = '2026-10-15T12:00:00.000Z';
 for (const { name, create } of testDatabases()) {
   describe(`database (${name})`, () => {
     test('migrations apply once and are tracked', () => withDb(create, async (db) => {
-      assert.deepEqual(await migrate(db), ['001_init.sql', '002_installed_at.sql']);
+      assert.deepEqual(await migrate(db), ['001_init.sql', '002_installed_at.sql', '003_sessions_backups.sql']);
       assert.deepEqual(await migrate(db), [], 'second run applies nothing');
-      assert.equal(await schemaVersion(db), 2);
+      assert.equal(await schemaVersion(db), 3);
     }, { migrated: false }));
 
     test('later migrations are applied in numeric order', () => withDb(create, async (db) => {
@@ -92,3 +92,30 @@ for (const { name, create } of testDatabases()) {
     }));
   });
 }
+
+describe('backups', () => {
+  for (const { name, create } of testDatabases()) {
+    test(`snapshot and restore round-trip (${name})`, () => withDb(create, async (db) => {
+      const { createIngredient, saveDish, createSnapshot, restoreSnapshot, setStoredPasswordHash, getStoredPasswordHash, listDishLines, listIngredients, saveBackup, pruneBackups, listBackups } = await import('../src/db/index.js');
+      const ing = await createIngredient(db, { name: 'Flour', supplier: 'Brakes', category: '', pack_size: 5, pack_unit: 'kg', pack_price_ex_vat: 12, vat_rate: 0, waste_pct: 0.06 });
+      await saveDish(db, null, { name: 'Bread', type: 'food', menu_price_inc_pence: 600, vat_rate: null, target_gp: null, yield_portions: 1, packaging: null, active: 1, notes: '' },
+        [{ ingredient_id: ing.id, quantity: 200, unit: 'g' }]);
+      await setStoredPasswordHash(db, 'hash-before');
+      const snap = await createSnapshot(db);
+      assert.ok(!JSON.stringify(snap).includes('hash-before'), 'password hash never in a backup');
+
+      await createIngredient(db, { name: 'Extra', supplier: '', category: '', pack_size: 1, pack_unit: 'each', pack_price_ex_vat: 1, vat_rate: 0, waste_pct: 0 });
+      await setStoredPasswordHash(db, 'hash-after');
+      await restoreSnapshot(db, JSON.parse(JSON.stringify(snap)));
+      assert.deepEqual((await listIngredients(db)).map((i) => i.name), ['Flour']);
+      assert.equal((await listDishLines(db)).length, 1);
+      assert.equal(await getStoredPasswordHash(db), 'hash-after', 'restore keeps the current password');
+
+      for (let i = 0; i < 16; i++) await saveBackup(db, { ...snap, created_at: new Date(Date.UTC(2026, 0, i + 1)).toISOString() });
+      await pruneBackups(db, 14);
+      const kept = await listBackups(db);
+      assert.equal(kept.length, 14);
+      assert.equal(kept[0].created_at.slice(0, 10), '2026-01-16', 'newest kept');
+    }));
+  }
+});
