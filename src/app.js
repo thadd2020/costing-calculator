@@ -109,8 +109,13 @@ export function createApp({ db, config }) {
     if (err.type === 'entity.too.large') {
       return res.status(413).render('error', { title: 'Too much data', message: 'That form was too large to save. Try fewer recipe lines at once.' });
     }
-    console.error(`${req.method} ${req.path} failed:`, err.message);
     if (res.headersSent) return next(err);
+    // Client mistakes (malformed URL, too many form fields) are 4xx, not server errors.
+    const status = err.status || err.statusCode;
+    if (status >= 400 && status < 500) {
+      return res.status(status).render('error', { title: 'Bad request', message: "That request couldn't be understood. Go back and try again." });
+    }
+    console.error(`${req.method} ${req.path} failed:`, err.message);
     res.status(500).render('error', { title: 'Something went wrong', message: 'Nothing was changed. Please try again; if it keeps happening, check the server logs.' });
   });
 

@@ -20,12 +20,19 @@ export function verifyCsrf(req, res, next) {
   });
 }
 
-// Applies CSRF to every state-changing request except multipart uploads, which check it
-// after multer has parsed the body (see routes/import.js).
+// Applies CSRF to every state-changing request except the CSV upload, which checks it
+// after multer has parsed the multipart body (see routes/import.js). Any other multipart
+// request has no parsed body, so verifyCsrf refuses it.
 export function csrfUnlessMultipart(req, res, next) {
   if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
-  if (req.is('multipart/form-data')) return next();
+  if (req.method === 'POST' && req.path === '/import/preview' && req.is('multipart/form-data')) return next();
   return verifyCsrf(req, res, next);
+}
+
+// Only same-site paths: "/dishes/3" yes; "//evil.example" or "/\evil.example" (which browsers
+// treat as "//") no.
+export function isSafeReturnPath(value) {
+  return typeof value === 'string' && /^\/(?![\/\\])/.test(value) && !/[\u0000-\u001f\\]/.test(value);
 }
 
 export function requireLogin(req, res, next) {

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { checkPassword } from '../auth.js';
+import { isSafeReturnPath } from '../security.js';
 
 export default function authRoutes({ db, config }) {
   const router = Router();
@@ -25,8 +26,7 @@ export default function authRoutes({ db, config }) {
   router.post('/login', loginLimiter, async (req, res, next) => {
     const ok = await checkPassword(db, config, req.body.password);
     if (!ok) return res.status(401).render('login', { error: "That password isn't right." });
-    const returnTo = typeof req.session.returnTo === 'string' && req.session.returnTo.startsWith('/') && !req.session.returnTo.startsWith('//')
-      ? req.session.returnTo : '/';
+    const returnTo = isSafeReturnPath(req.session.returnTo) ? req.session.returnTo : '/';
     // New session id on login, so a session id seen before login is useless afterwards.
     req.session.regenerate((err) => {
       if (err) return next(err);

@@ -87,7 +87,7 @@ export default function importRoutes({ db }) {
 
   router.post('/import/:batchId/discard', async (req, res, next) => {
     const id = parseId(req.params.batchId);
-    if (!id) return next();
+    if (!id || !(await getImportBatch(db, id))) return next();
     const discarded = await finishImportBatch(db, id, 'discarded', {});
     if (discarded) flash(req, 'Import cancelled. Nothing was changed.');
     else flash(req, 'This import had already been confirmed or cancelled, so there was nothing to cancel.', 'error');
