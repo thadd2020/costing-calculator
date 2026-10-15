@@ -71,5 +71,6 @@
     </li>
     <% } %>
   </ul>
+  <div class="empty" data-empty<%= ingredients.length ? ' hidden' : '' %>><h2>No matches</h2><p>No ingredients match this search. <a href="/ingredients">Show all</a></p></div>
 <% } %>
 <%- include('../partials/bottom', { scripts: ['/static/js/ingredients.js', '/static/js/confirm.js'] }) %>

@@ -45,13 +45,15 @@ function decode(buffer) {
 
 const key = (name, supplier) => `${name.toLowerCase()}\u0000${supplier.toLowerCase()}`;
 
-// Returns { rows, errors, fatal, columns }.
+// Returns { rows, errors, fatal, columns, present }.
+//   present: the template columns the file actually has (a price-only list may lack category,
+//            vat_rate or waste_pct, and then matched ingredients keep their saved values)
 //   rows:   [{ row, data: { name, supplier, category, pack_size, pack_unit, pack_price_ex_vat, vat_rate, waste_pct }, raw }]
 //   errors: [{ row, field, message, raw }]
 //   fatal:  string when the whole file is unusable (then rows and errors are empty)
 // `row` is the line number in the file, counting the header as row 1, like a spreadsheet.
 export function parseIngredientCsv(buffer) {
-  const empty = (fatal) => ({ rows: [], errors: [], fatal, columns: [] });
+  const empty = (fatal) => ({ rows: [], errors: [], fatal, columns: [], present: [] });
   if (!buffer || buffer.length === 0) return empty('The file is empty.');
   if (buffer.length > MAX_BYTES) return empty('The file is larger than 2 MB. Split it into smaller files.');
   const text = decode(buffer).replace(/^﻿/, '');
@@ -105,7 +107,8 @@ export function parseIngredientCsv(buffer) {
     seen.set(k, rowNumber);
     rows.push({ row: rowNumber, data: result.data, raw });
   }
-  return { rows, errors, fatal: null, columns: TEMPLATE_COLUMNS };
+  const present = TEMPLATE_COLUMNS.filter((c) => columns.includes(c));
+  return { rows, errors, fatal: null, columns: TEMPLATE_COLUMNS, present };
 }
 
 function validateRow(raw, row) {

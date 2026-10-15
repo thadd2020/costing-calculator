@@ -181,6 +181,7 @@ root.querySelector('[data-add-line]').addEventListener('click', addLine);
 root.querySelector('[data-use-suggested]').addEventListener('click', (event) => {
   if (!event.currentTarget.dataset.price) return;
   field('menu_price').value = event.currentTarget.dataset.price;
+  dirty = true;
   recalc();
 });
 form.addEventListener('input', (event) => { if (!linesList.contains(event.target)) recalc(); });

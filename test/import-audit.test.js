@@ -3,6 +3,7 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parse as csvParse } from 'csv-parse/sync';
 import { parseIngredientCsv, MAX_ROWS } from '../src/import/parse.js';
+import { planImport } from '../src/import/plan.js';
 import { previewImport, commitImport } from '../src/import/service.js';
 import {
   listIngredients, createIngredient, updateIngredient, saveDish, getImportBatch, priceHistory,
@@ -558,5 +559,26 @@ describe('import audit: HTTP flow', () => {
       assert.equal(ings.length, 1);
       assert.deepEqual([ings[0].name, ings[0].supplier, ings[0].pack_price_ex_vat], ['Plain flour', 'Brakes', 13]);
     });
+  });
+});
+
+describe('import audit: columns missing from the file', () => {
+  const saved = { id: 1, name: 'House wine', supplier: '', category: 'Wine', pack_size: 75, pack_unit: 'ml', pack_price_ex_vat: 6, vat_rate: 0.2, waste_pct: 0.02 };
+
+  test('a price-only list keeps the saved category, VAT and waste of matched ingredients', () => {
+    const parsed = parseIngredientCsv(Buffer.from('name,pack_size,pack_unit,pack_price\nHouse wine,75,ml,6\nNew thing,1,kg,2\n'));
+    assert.deepEqual(parsed.present, ['name', 'pack_size', 'pack_unit', 'pack_price']);
+    const plan = planImport(parsed.rows, [saved], 0, parsed.present);
+    assert.equal(plan.items[0].action, 'unchanged');
+    assert.deepEqual([plan.items[0].data.category, plan.items[0].data.vat_rate, plan.items[0].data.waste_pct], ['Wine', 0.2, 0.02]);
+    // New ingredients still get the defaults.
+    assert.deepEqual([plan.items[1].data.category, plan.items[1].data.vat_rate, plan.items[1].data.waste_pct], ['', 0, 0.05]);
+  });
+
+  test('a column that is present but blank still means the default', () => {
+    const parsed = parseIngredientCsv(Buffer.from('name,pack_size,pack_unit,pack_price,waste_pct\nHouse wine,75,ml,6,\n'));
+    const plan = planImport(parsed.rows, [saved], 0, parsed.present);
+    assert.equal(plan.items[0].data.waste_pct, 0.05);
+    assert.deepEqual(plan.items[0].changedFields, ['waste_pct']);
   });
 });

@@ -13,5 +13,7 @@ if (form) {
       if (!li.hidden) shown += 1;
     }
     if (count) count.textContent = shown;
+    const empty = document.querySelector('[data-empty]');
+    if (empty) empty.hidden = shown > 0;
   });
 }

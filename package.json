@@ -14,7 +14,8 @@
     "migrate": "node scripts/migrate.js",
     "seed": "node scripts/seed.js",
     "set-password": "node scripts/set-password.js",
-    "restore": "node scripts/restore.js"
+    "restore": "node scripts/restore.js",
+    "test:e2e": "node --test \"test/e2e/**/*.e2e.js\""
   },
   "license": "UNLICENSED",
   "dependencies": {
@@ -29,5 +30,8 @@
     "helmet": "^8.3.0",
     "multer": "^2.4.0",
     "mysql2": "^3.24.6"
+  },
+  "devDependencies": {
+    "playwright": "^1.64.1"
   }
 }

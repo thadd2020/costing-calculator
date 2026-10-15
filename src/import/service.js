@@ -17,11 +17,11 @@ export class ImportError extends Error {}
 export async function previewImport(db, { filename, buffer }) {
   const parsed = parseIngredientCsv(buffer);
   if (parsed.fatal) return { fatal: parsed.fatal };
-  const plan = planImport(parsed.rows, await listIngredients(db), parsed.errors.length);
+  const plan = planImport(parsed.rows, await listIngredients(db), parsed.errors.length, parsed.present);
   await discardStaleImports(db, new Date(Date.now() - 24 * 3600 * 1000).toISOString());
   const batchId = await createImportBatch(db, {
     filename,
-    payload: { rows: parsed.rows.map(({ row, data }) => ({ row, data })), errors: parsed.errors },
+    payload: { rows: parsed.rows.map(({ row, data }) => ({ row, data })), errors: parsed.errors, present: parsed.present },
     summary: plan.counts,
   });
   return { batchId };
@@ -36,7 +36,7 @@ export async function commitImport(db, batchId) {
     if (!batch) return { error: 'not_found' };
     if (batch.status !== 'previewed') return { error: batch.status };
 
-    const plan = planImport(batch.payload.rows, await listIngredients(tx), batch.payload.errors.length);
+    const plan = planImport(batch.payload.rows, await listIngredients(tx), batch.payload.errors.length, batch.payload.present);
     // Pack size, unit and waste change a dish's cost just as a price change does.
     const changesCost = (i) => i.action === 'price_changed'
       || (i.action === 'details_changed' && i.changedFields.some((f) => COST_FIELDS.includes(f)));
