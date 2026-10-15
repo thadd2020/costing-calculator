@@ -7,12 +7,14 @@ export function safeCell(value) {
   if (value === null || value === undefined) return '';
   if (typeof value === 'number') return Number.isFinite(value) ? String(value) : '';
   const s = String(value);
-  return /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
+  // Also protect text that really starts with ' plus a formula character, because the
+  // importer strips one leading quote from such cells.
+  return /^'?[=+\-@\t\r]/.test(s) ? `'${s}` : s;
 }
 
 // The import strips that quote again, so export -> edit -> re-import round-trips.
 export function unescapeCell(value) {
-  return typeof value === 'string' && /^'[=+\-@\t\r]/.test(value) ? value.slice(1) : value;
+  return typeof value === 'string' && /^''?[=+\-@\t\r]/.test(value) ? value.slice(1) : value;
 }
 
 export function toCsv(columns, rows) {

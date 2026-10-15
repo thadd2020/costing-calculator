@@ -21,7 +21,7 @@
 <section class="panel" aria-labelledby="h-impact">
   <h2 id="h-impact">Effect on your dishes</h2>
   <% if (!(s.dishImpact || []).length) { %>
-    <p>No dishes use the ingredients whose price changed.</p>
+    <p>No dishes use the ingredients whose cost changed.</p>
   <% } else { %>
     <% if (nowBelow.length) { %>
       <p><%- include('../partials/status', { status: { key: 'below', icon: '✕', label: `${nowBelow.length} ${nowBelow.length === 1 ? 'dish is' : 'dishes are'} now below your alert threshold` } }) %></p>

@@ -27,10 +27,20 @@ export const normaliseHeader = (h) => String(h).replace(/^﻿/, '').trim().toLow
 
 // Picks the delimiter that appears most in the header line: comma, semicolon or tab.
 function detectDelimiter(text) {
-  const firstLine = text.split(/\r?\n/, 1)[0] || '';
+  const firstLine = text.split(/\r?\n|\r/).find((line) => line.trim() !== '') || '';
   const counts = [',', ';', '\t'].map((d) => [d, firstLine.split(d).length - 1]);
   counts.sort((a, b) => b[1] - a[1]);
   return counts[0][1] > 0 ? counts[0][0] : ',';
+}
+
+// Excel's plain "CSV (Comma delimited)" saves as Windows-1252, not UTF-8. If the bytes aren't
+// valid UTF-8, read them as Windows-1252 so "Crème" and "£" survive.
+function decode(buffer) {
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(buffer);
+  } catch {
+    return new TextDecoder('windows-1252').decode(buffer);
+  }
 }
 
 const key = (name, supplier) => `${name.toLowerCase()}\u0000${supplier.toLowerCase()}`;
@@ -44,7 +54,7 @@ export function parseIngredientCsv(buffer) {
   const empty = (fatal) => ({ rows: [], errors: [], fatal, columns: [] });
   if (!buffer || buffer.length === 0) return empty('The file is empty.');
   if (buffer.length > MAX_BYTES) return empty('The file is larger than 2 MB. Split it into smaller files.');
-  const text = buffer.toString('utf8').replace(/^﻿/, '');
+  const text = decode(buffer).replace(/^﻿/, '');
   if (text.includes('\u0000')) return empty("This doesn't look like a CSV file. Save the spreadsheet as CSV (UTF-8) and try again.");
 
   let records;
@@ -53,6 +63,8 @@ export function parseIngredientCsv(buffer) {
       delimiter: detectDelimiter(text),
       relax_column_count: true,
       skip_empty_lines: true,
+      // A stray quote inside a field (12" pizza base) is kept as text, not a whole-file error.
+      relax_quotes: true,
       trim: true,
       info: true,
     });
@@ -74,7 +86,10 @@ export function parseIngredientCsv(buffer) {
   const errors = [];
   const seen = new Map();
   for (const { record, info } of dataRecords) {
-    const rowNumber = info.lines;
+    // info.lines is the line a record ends on; a quoted value can span lines, and the owner
+    // needs the row where it starts.
+    const innerBreaks = record.join('').match(/\r\n|\r|\n/g)?.length ?? 0;
+    const rowNumber = info.lines - innerBreaks;
     const raw = {};
     columns.forEach((col, i) => { if (col && raw[col] === undefined) raw[col] = unescapeCell(record[i] ?? ''); });
     const result = validateRow(raw, rowNumber);

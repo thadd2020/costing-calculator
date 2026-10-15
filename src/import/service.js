@@ -7,6 +7,8 @@ import { parseIngredientCsv } from './parse.js';
 import { planImport } from './plan.js';
 import { costDishes } from '../costing.js';
 
+const COST_FIELDS = ['pack_size', 'pack_unit', 'waste_pct'];
+
 // A problem to show the owner; anything else is a bug and gets the generic error page.
 export class ImportError extends Error {}
 
@@ -35,7 +37,10 @@ export async function commitImport(db, batchId) {
     if (batch.status !== 'previewed') return { error: batch.status };
 
     const plan = planImport(batch.payload.rows, await listIngredients(tx), batch.payload.errors.length);
-    const changingIds = plan.items.filter((i) => i.action === 'price_changed').map((i) => i.existingId);
+    // Pack size, unit and waste change a dish's cost just as a price change does.
+    const changesCost = (i) => i.action === 'price_changed'
+      || (i.action === 'details_changed' && i.changedFields.some((f) => COST_FIELDS.includes(f)));
+    const changingIds = plan.items.filter(changesCost).map((i) => i.existingId);
     const affectedDishIds = await dishIdsUsingIngredients(tx, changingIds);
     const before = new Map((await costDishes(tx, { dishIds: affectedDishIds })).map((d) => [d.dish.id, d.result]));
     const priceChangedIds = [];
@@ -49,7 +54,7 @@ export async function commitImport(db, batchId) {
         if (item.action === 'price_changed') priceChangedIds.push(item.existingId);
       }
     }
-    // GP of every dish that uses a re-priced ingredient, before and after.
+    // GP of every dish that uses an ingredient whose cost changed, before and after.
     const dishImpact = (await costDishes(tx, { dishIds: affectedDishIds })).map(({ dish, result }) => ({
       id: dish.id, name: dish.name, active: dish.active,
       beforePct: before.get(dish.id)?.gpPct ?? null, beforeStatus: before.get(dish.id)?.status.key ?? 'na',
